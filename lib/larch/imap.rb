@@ -382,7 +382,6 @@ class IMAP
 
     begin
       unsafe_connect unless @imap
-      yield
     rescue *RECOVERABLE_ERRORS => e
       raise unless (retries += 1) <= 3
 
@@ -391,6 +390,17 @@ class IMAP
       retry
     end
 
+    retries = 0
+
+    begin
+      yield
+    rescue *RECOVERABLE_ERRORS => e
+      raise unless (retries += 1) <= 3
+
+      sleep 2 * retries
+      retry
+    end
+      
   rescue IOError, Net::IMAP::Error, OpenSSL::SSL::SSLError, SocketError, SystemCallError => e
     raise FatalError, "while communicating with IMAP server (#{e.class.name}): #{e.message}"
   end
