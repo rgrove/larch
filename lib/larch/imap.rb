@@ -352,42 +352,48 @@ class IMAP
   def unsafe_connect
     info "connecting..."
 
-    begin
-      @imap = Net::IMAP.new(host, port, ssl?)
-    rescue => e
-      error e.message
-      raise
-    end
+    exception = nil
 
-    info "connected on port #{port}" << (ssl? ? ' using SSL' : '')
+    Thread.new do
+      begin
+        @imap = Net::IMAP.new(host, port, ssl?)
 
-    auth_methods = ['PLAIN']
-    tried        = []
+        info "connected on port #{port}" << (ssl? ? ' using SSL' : '')
 
-    ['LOGIN', 'CRAM-MD5'].each do |method|
-      auth_methods << method if @imap.capability.include?("AUTH=#{method}")
-    end
+        auth_methods = ['PLAIN']
+        tried        = []
 
-    begin
-      tried << method = auth_methods.pop
+        ['LOGIN', 'CRAM-MD5'].each do |method|
+          auth_methods << method if @imap.capability.include?("AUTH=#{method}")
+        end
 
-      debug "authenticating using #{method}"
+        begin
+          tried << method = auth_methods.pop
 
-      if method == 'PLAIN'
-        @imap.login(@username, @password)
-      else
-        @imap.authenticate(method, @username, @password)
+          debug "authenticating using #{method}"
+
+          if method == 'PLAIN'
+            @imap.login(@username, @password)
+          else
+            @imap.authenticate(method, @username, @password)
+          end
+
+          info "authenticated using #{method}"
+
+        rescue Net::IMAP::BadResponseError, Net::IMAP::NoResponseError => e
+          debug "#{method} auth failed: #{e.message}"
+          retry unless auth_methods.empty?
+
+          raise e, "#{e.message} (tried #{tried.join(', ')})"
+        end
+
+      rescue => e
+        exception = e
+        error e.message
       end
+    end.join
 
-      info "authenticated using #{method}"
-
-    rescue Net::IMAP::BadResponseError, Net::IMAP::NoResponseError => e
-      debug "#{method} auth failed: #{e.message}"
-      retry unless auth_methods.empty?
-
-      error "authentication failed: #{e.message} (tried #{tried.join(', ')})"
-      raise
-    end
+    raise exception if exception
   end
 
 end
