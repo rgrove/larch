@@ -25,7 +25,6 @@ module Larch
 
       @copied    = 0
       @failed    = 0
-      @untouched = 0
       @total     = 0
     end
 
@@ -39,7 +38,6 @@ module Larch
 
       @copied    = 0
       @failed    = 0
-      @untouched = 0
       @total     = 0
 
       @log.info "copying messages from #{source.uri} to #{dest.uri}"
@@ -54,11 +52,7 @@ module Larch
           @total = source.length
 
           source.each do |id|
-            if dest.has_message?(id)
-              @untouched += 1
-              next
-            end
-
+            next if dest.has_message?(id)
             msgq << source.peek(id)
           end
 
@@ -101,7 +95,7 @@ module Larch
     end
 
     def summary
-      @log.info "#{@copied} message(s) copied, #{@failed} failed, #{@untouched} untouched out of #{@total} total"
+      @log.info "#{@copied} message(s) copied, #{@failed} failed, #{@total - @copied - @failed} untouched out of #{@total} total"
     end
   end
 
