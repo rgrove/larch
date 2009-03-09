@@ -86,16 +86,18 @@ class IMAP
     return false if has_message?(message)
 
     safely do
-      begin
-        @imap.select(mailbox)
-      rescue Net::IMAP::NoResponseError => e
-        if @options[:create_mailbox]
-          info "creating mailbox: #{mailbox}"
-          @imap.create(mailbox)
-          retry
-        end
+      @mutex.synchronize do
+        begin
+          @imap.select(mailbox)
+        rescue Net::IMAP::NoResponseError => e
+          if @options[:create_mailbox]
+            info "creating mailbox: #{mailbox}"
+            @imap.create(mailbox)
+            retry
+          end
 
-        raise
+          raise
+        end
       end
 
       debug "appending message: #{message.id}"
@@ -117,13 +119,12 @@ class IMAP
   def disconnect
     return unless @imap
 
-    @mutex.synchronize do
-      @imap.disconnect
-      @imap = nil
-    end
+    @imap.disconnect
+    @imap = nil
 
     info "disconnected"
   end
+  synchronized :disconnect
 
   # Iterates through Larch message ids in this mailbox, yielding each one to the
   # provided block.
@@ -199,7 +200,7 @@ class IMAP
   def scan_mailbox
     return if @last_scan && (Time.now - @last_scan) < SCAN_INTERVAL
 
-    last_id = unsync_safely do
+    last_id = safely do
       begin
         @imap.examine(mailbox)
       rescue Net::IMAP::NoResponseError => e
@@ -233,9 +234,9 @@ class IMAP
         next
       end
 
-      if @ids.has_key?(id)
+      if @ids.has_key?(id) && Larch.log.level == :debug
         envelope = imap_uid_fetch([uid], 'ENVELOPE').first.attr['ENVELOPE']
-        warn "duplicate message? #{id} (Subject: #{envelope.subject})"
+        debug "duplicate message? #{id} (Subject: #{envelope.subject})"
       end
 
       @ids[id] = uid
@@ -275,7 +276,7 @@ class IMAP
   # Fetches the specified _fields_ for the specified message sequence id(s) from
   # the IMAP server.
   def imap_fetch(ids, fields)
-    data = unsync_safely { @imap.fetch(ids, fields) }
+    data = safely { @imap.fetch(ids, fields) }
 
     # If fields isn't an array, make it one.
     fields = REGEX_FIELDS.match(fields).captures unless fields.is_a?(Array)
@@ -300,7 +301,7 @@ class IMAP
   # Fetches the specified _fields_ for the specified UID(s) from the IMAP
   # server.
   def imap_uid_fetch(uids, fields)
-    data = unsync_safely { @imap.uid_fetch(uids, fields) }
+    data = safely { @imap.uid_fetch(uids, fields) }
 
     # If fields isn't an array, make it one.
     fields = REGEX_FIELDS.match(fields).captures unless fields.is_a?(Array)
@@ -325,8 +326,32 @@ class IMAP
 
   # Connect if necessary, execute the given block, retry up to 3 times if a
   # recoverable error occurs, die if an unrecoverable error occurs.
-  def safely(&block)
-    @mutex.synchronize { unsync_safely(&block) }
+  def safely
+    retries = 0
+
+    begin
+      unsafe_connect unless @imap
+    rescue *RECOVERABLE_ERRORS => e
+      raise unless (retries += 1) <= 3
+
+      @imap = nil
+      sleep 2 * retries
+      retry
+    end
+
+    retries = 0
+
+    begin
+      yield
+    rescue *RECOVERABLE_ERRORS => e
+      raise unless (retries += 1) <= 3
+
+      sleep 2 * retries
+      retry
+    end
+
+  rescue IOError, Net::IMAP::Error, OpenSSL::SSL::SSLError, SocketError, SystemCallError => e
+    raise FatalError, "while communicating with IMAP server (#{e.class.name}): #{e.message}"
   end
 
   def unsafe_connect
@@ -375,36 +400,6 @@ class IMAP
 
     raise exception if exception
   end
-
-  # Unsynchronized version of safely.
-  def unsync_safely #:nodoc:
-    retries = 0
-
-    begin
-      unsafe_connect unless @imap
-    rescue *RECOVERABLE_ERRORS => e
-      raise unless (retries += 1) <= 3
-
-      @imap = nil
-      sleep 2 * retries
-      retry
-    end
-
-    retries = 0
-
-    begin
-      yield
-    rescue *RECOVERABLE_ERRORS => e
-      raise unless (retries += 1) <= 3
-
-      sleep 2 * retries
-      retry
-    end
-      
-  rescue IOError, Net::IMAP::Error, OpenSSL::SSL::SSLError, SocketError, SystemCallError => e
-    raise FatalError, "while communicating with IMAP server (#{e.class.name}): #{e.message}"
-  end
-
 end
 
 end
