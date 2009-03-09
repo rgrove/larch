@@ -112,18 +112,18 @@ class IMAP
     return if @imap
     safely {} # connect, but do nothing else
   end
-  synchronized :connect
 
   # Closes the IMAP connection if one is currently open.
   def disconnect
     return unless @imap
 
-    @imap.disconnect
-    @imap = nil
+    @mutex.synchronize do
+      @imap.disconnect
+      @imap = nil
+    end
 
     info "disconnected"
   end
-  synchronized :disconnect
 
   # Iterates through Larch message ids in this mailbox, yielding each one to the
   # provided block.
@@ -138,10 +138,8 @@ class IMAP
 
   # Gets a Net::IMAP::Envelope for the specified message id.
   def envelope(message_id)
-    uid = @mutex.synchronize do
-      unsync_scan_mailbox
-      @ids[message_id]
-    end
+    scan_mailbox
+    uid = @ids[message_id]
 
     raise NotFoundError, "message not found: #{message_id}" if uid.nil?
 
@@ -152,10 +150,8 @@ class IMAP
   # Fetches a Larch::Message instance representing the message with the
   # specified Larch message id.
   def fetch(message_id, peek = false)
-    uid = @mutex.synchronize do
-      unsync_scan_mailbox
-      @ids[message_id]
-    end
+    scan_mailbox
+    uid = @ids[message_id]
 
     raise NotFoundError, "message not found: #{message_id}" if uid.nil?
 
@@ -170,10 +166,9 @@ class IMAP
   # Returns +true+ if a message with the specified Larch <em>message_id</em>
   # exists in this mailbox, +false+ otherwise.
   def has_message?(message_id)
-    unsync_scan_mailbox
+    scan_mailbox
     @ids.has_key?(message_id)
   end
-  synchronized :has_message?
 
   def host
     @uri.host
@@ -181,10 +176,9 @@ class IMAP
 
   # Gets the number of messages in this mailbox.
   def length
-    unsync_scan_mailbox
+    scan_mailbox
     @ids.length
   end
-  synchronized :length
   alias size length
 
   # Same as fetch, but doesn't mark the message as seen.
@@ -205,7 +199,7 @@ class IMAP
   def scan_mailbox
     return if @last_scan && (Time.now - @last_scan) < SCAN_INTERVAL
 
-    last_id = safely do
+    last_id = unsync_safely do
       begin
         @imap.examine(mailbox)
       rescue Net::IMAP::NoResponseError => e
@@ -281,7 +275,7 @@ class IMAP
   # Fetches the specified _fields_ for the specified message sequence id(s) from
   # the IMAP server.
   def imap_fetch(ids, fields)
-    data = safely { @imap.fetch(ids, fields) }
+    data = unsync_safely { @imap.fetch(ids, fields) }
 
     # If fields isn't an array, make it one.
     fields = REGEX_FIELDS.match(fields).captures unless fields.is_a?(Array)
@@ -306,7 +300,7 @@ class IMAP
   # Fetches the specified _fields_ for the specified UID(s) from the IMAP
   # server.
   def imap_uid_fetch(uids, fields)
-    data = safely { @imap.uid_fetch(uids, fields) }
+    data = unsync_safely { @imap.uid_fetch(uids, fields) }
 
     # If fields isn't an array, make it one.
     fields = REGEX_FIELDS.match(fields).captures unless fields.is_a?(Array)
@@ -331,22 +325,8 @@ class IMAP
 
   # Connect if necessary, execute the given block, retry up to 3 times if a
   # recoverable error occurs, die if an unrecoverable error occurs.
-  def safely
-    retries = 0
-
-    begin
-      unsafe_connect unless @imap
-      yield
-    rescue *RECOVERABLE_ERRORS => e
-      raise unless (retries += 1) <= 3
-
-      @imap = nil
-      sleep 2 * retries
-      retry
-    end
-
-  rescue IOError, Net::IMAP::Error, OpenSSL::SSL::SSLError, SocketError, SystemCallError => e
-    raise FatalError, "while communicating with IMAP server (#{e.class.name}): #{e.message}"
+  def safely(&block)
+    @mutex.synchronize { unsync_safely(&block) }
   end
 
   def unsafe_connect
@@ -394,6 +374,25 @@ class IMAP
     end.join
 
     raise exception if exception
+  end
+
+  # Unsynchronized version of safely.
+  def unsync_safely #:nodoc:
+    retries = 0
+
+    begin
+      unsafe_connect unless @imap
+      yield
+    rescue *RECOVERABLE_ERRORS => e
+      raise unless (retries += 1) <= 3
+
+      @imap = nil
+      sleep 2 * retries
+      retry
+    end
+
+  rescue IOError, Net::IMAP::Error, OpenSSL::SSL::SSLError, SocketError, SystemCallError => e
+    raise FatalError, "while communicating with IMAP server (#{e.class.name}): #{e.message}"
   end
 
 end
