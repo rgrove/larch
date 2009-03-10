@@ -47,7 +47,18 @@ module Larch
       # never access the same variables. If we end up adding additional threads,
       # these accesses need to be synchronized.
 
-      source_thread = Thread.new do
+      source_scan = Thread.new do
+        source.scan_mailbox
+      end
+
+      dest_scan = Thread.new do
+        dest.scan_mailbox
+      end
+
+      source_scan.join
+      dest_scan.join
+
+      source_copy = Thread.new do
         begin
           @total = source.length
 
@@ -64,13 +75,19 @@ module Larch
         end
       end
 
-      dest_thread = Thread.new do
+      dest_copy = Thread.new do
         begin
           while msg = msgq.pop do
             break if msg == :finished
 
-            from = msg.envelope.from.first
-            @log.info "copying message: #{from.mailbox}@#{from.host} - #{msg.envelope.subject}"
+            if msg.envelope.from
+              env_from = msg.envelope.from.first
+              from = "#{env_from.mailbox}@#{env_from.host}"
+            else
+              from = '?'
+            end
+
+            @log.info "copying message: #{from} - #{msg.envelope.subject}"
             dest << msg
 
             @copied += 1
@@ -86,7 +103,7 @@ module Larch
         end
       end
 
-      dest_thread.join
+      dest_copy.join
 
       source.disconnect
       dest.disconnect
