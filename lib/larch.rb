@@ -34,18 +34,14 @@ module Larch
       raise ArgumentError, "source must be a Larch::IMAP instance" unless source.is_a?(IMAP)
       raise ArgumentError, "dest must be a Larch::IMAP instance" unless dest.is_a?(IMAP)
 
-      msgq = SizedQueue.new(32)
+      msgq  = SizedQueue.new(32)
+      mutex = Mutex.new
 
       @copied    = 0
       @failed    = 0
       @total     = 0
 
       @log.info "copying messages from #{source.uri} to #{dest.uri}"
-
-      # Note that the stats variables are being accessed without synchronization
-      # in the following threads. This is currently safe because the threads
-      # never access the same variables. If we end up adding additional threads,
-      # these accesses need to be synchronized.
 
       source_scan = Thread.new do
         source.scan_mailbox
@@ -60,11 +56,17 @@ module Larch
 
       source_copy = Thread.new do
         begin
-          @total = source.length
+          mutex.synchronize { @total = source.length }
 
           source.each do |id|
             next if dest.has_message?(id)
-            msgq << source.peek(id)
+
+            begin
+              msgq << source.peek(id)
+            rescue Larch::IMAP::Error => e
+              mutex.synchronize { @failed += 1 }
+              next
+            end
           end
 
         rescue => e
@@ -90,14 +92,14 @@ module Larch
             @log.info "copying message: #{from} - #{msg.envelope.subject}"
             dest << msg
 
-            @copied += 1
+            mutex.synchronize { @copied += 1 }
           end
 
         rescue IMAP::FatalError => e
           @log.fatal e.message
 
         rescue => e
-          @failed += 1
+          mutex.synchronize { @failed += 1 }
           @log.error e.message
           retry
         end
