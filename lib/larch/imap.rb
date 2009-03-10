@@ -336,7 +336,7 @@ class IMAP
       raise unless (retries += 1) <= 3
 
       @imap = nil
-      sleep 2 * retries
+      sleep 1 * retries
       retry
     end
 
@@ -348,7 +348,7 @@ class IMAP
       info "#{e.class.name}: #{e.message} (will retry)"
       raise unless (retries += 1) <= 3
 
-      sleep 2 * retries
+      sleep 1 * retries
       retry
     end
 
