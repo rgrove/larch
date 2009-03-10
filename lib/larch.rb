@@ -34,7 +34,7 @@ module Larch
       raise ArgumentError, "source must be a Larch::IMAP instance" unless source.is_a?(IMAP)
       raise ArgumentError, "dest must be a Larch::IMAP instance" unless dest.is_a?(IMAP)
 
-      msgq  = SizedQueue.new(32)
+      msgq  = SizedQueue.new(8)
       mutex = Mutex.new
 
       @copied    = 0
@@ -65,6 +65,7 @@ module Larch
               msgq << source.peek(id)
             rescue Larch::IMAP::Error => e
               mutex.synchronize { @failed += 1 }
+              @log.error e.message
               next
             end
           end
