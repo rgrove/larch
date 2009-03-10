@@ -27,21 +27,25 @@ EOS
     # opt :dry_run,          "Don't actually do anything.", :short => '-n'
     opt :fast_scan,        "Use a faster (but less accurate) method to scan mailboxes. This may result in messages being re-copied.", :short => :none
     opt :from_folder,      "Source folder to copy from.", :short => :none, :default => 'INBOX'
-    opt :from_pass,        "Source server password (will prompt if not specified).", :short => :none, :type => :string
-    opt :from_user,        "Source server username (will prompt if not specified).", :short => :none, :type => :string
+    opt :from_pass,        "Source server password (Default: prompt).", :short => :none, :type => :string
+    opt :from_user,        "Source server username (Default: prompt).", :short => :none, :type => :string
     opt :no_create_folder, "Don't create destination folders that don't already exist.", :short => :none
     opt :to_folder,        "Destination folder to copy to.", :short => :none, :default => 'INBOX'
-    opt :to_pass,          "Destination server password (will prompt if not specified).", :short => :none, :type => :string
-    opt :to_user,          "Destination server username (will prompt if not specified).", :short => :none, :type => :string
+    opt :to_pass,          "Destination server password (Default: prompt).", :short => :none, :type => :string
+    opt :to_user,          "Destination server username (Default: prompt).", :short => :none, :type => :string
     opt :verbosity,        "Output verbosity: debug, info, warn, error, or fatal.", :short => '-V', :default => 'info'
   end
 
   # Validate command-line options.
   [:from, :to].each do |sym|
-    Trollop.die sym, "must be a valid IMAP URI (e.g. imap://example.com)" unless options[sym] =~ IMAP::REGEX_URI
+    unless options[sym] =~ IMAP::REGEX_URI
+      Trollop.die sym, "must be a valid IMAP URI (e.g. imap://example.com)"
+    end
   end
 
-  Trollop.die :verbosity, "must be one of: #{Logger::LEVELS.keys.join(', ')}" unless Logger::LEVELS.has_key?(options[:verbosity].to_sym)
+  unless Logger::LEVELS.has_key?(options[:verbosity].to_sym)
+    Trollop.die :verbosity, "must be one of: #{Logger::LEVELS.keys.join(', ')}"
+  end
 
   # Create URIs.
   options[:from]      = URI(options[:from])
@@ -50,16 +54,31 @@ EOS
   options[:to].path   = '/' + CGI.escape(options[:to_folder].gsub(/^\//, ''))
 
   # Prompt for usernames and passwords if necessary.
-  options[:from_user] = ask("Source username (#{options[:from].host}): ") unless options[:from_user]
-  options[:from_pass] = ask("Source password (#{options[:from].host}): ") {|q| q.echo = false } unless options[:from_pass]
-  options[:to_user] = ask("Destination username (#{options[:to].host}): ") unless options[:to_user]
-  options[:to_pass] = ask("Destination password (#{options[:to].host}): ") {|q| q.echo = false } unless options[:to_pass]
+  unless options[:from_user]
+    options[:from_user] = ask("Source username (#{options[:from].host}): ")
+  end
+
+  unless options[:from_pass]
+    options[:from_pass] = ask("Source password (#{options[:from].host}): ") {|q| q.echo = false }
+  end
+
+  unless options[:to_user]
+    options[:to_user] = ask("Destination username (#{options[:to].host}): ")
+  end
+
+  unless options[:to_pass]
+    options[:to_pass] = ask("Destination password (#{options[:to].host}): ") {|q| q.echo = false }
+  end
 
   # Go go go!
   init(options[:verbosity])
 
-  source = IMAP.new(options[:from], options[:from_user], options[:from_pass], :fast_scan => options[:fast_scan])
-  dest   = IMAP.new(options[:to], options[:to_user], options[:to_pass], :create_mailbox => !options[:no_create_folder], :fast_scan => options[:fast_scan])
+  source = IMAP.new(options[:from], options[:from_user], options[:from_pass],
+      :fast_scan => options[:fast_scan])
+
+  dest = IMAP.new(options[:to], options[:to_user], options[:to_pass],
+      :create_mailbox => !options[:no_create_folder],
+      :fast_scan => options[:fast_scan])
 
   for sig in [:SIGINT, :SIGQUIT, :SIGTERM]
     trap(sig) { @log.fatal "Interrupted (#{sig})"; summary; exit }
