@@ -145,7 +145,7 @@ class IMAP
     raise NotFoundError, "message not found: #{message_id}" if uid.nil?
 
     debug "fetching envelope: #{message_id}"
-    safely { imap_uid_fetch([uid], 'ENVELOPE').first.attr['ENVELOPE'] }
+    imap_uid_fetch([uid], 'ENVELOPE').first.attr['ENVELOPE']
   end
 
   # Fetches a Larch::Message instance representing the message with the
@@ -157,7 +157,7 @@ class IMAP
     raise NotFoundError, "message not found: #{message_id}" if uid.nil?
 
     debug "#{peek ? 'peeking at' : 'fetching'} message: #{message_id}"
-    data = safely { imap_uid_fetch([uid], [(peek ? 'BODY.PEEK[]' : 'BODY[]'), 'FLAGS', 'INTERNALDATE', 'ENVELOPE']) }.first
+    data = imap_uid_fetch([uid], [(peek ? 'BODY.PEEK[]' : 'BODY[]'), 'FLAGS', 'INTERNALDATE', 'ENVELOPE']).first
 
     Message.new(message_id, data.attr['ENVELOPE'], data.attr['BODY[]'],
         data.attr['FLAGS'], Time.parse(data.attr['INTERNALDATE']))
@@ -332,6 +332,7 @@ class IMAP
     begin
       unsafe_connect unless @imap
     rescue *RECOVERABLE_ERRORS => e
+      info "#{e.class.name}: #{e.message} (will retry)"
       raise unless (retries += 1) <= 3
 
       @imap = nil
@@ -344,14 +345,18 @@ class IMAP
     begin
       yield
     rescue *RECOVERABLE_ERRORS => e
+      info "#{e.class.name}: #{e.message} (will retry)"
       raise unless (retries += 1) <= 3
 
       sleep 2 * retries
       retry
     end
 
+  rescue Net::IMAP::NoResponseError => e
+    raise Error, "#{e.class.name}: #{e.message} (giving up)"
+
   rescue IOError, Net::IMAP::Error, OpenSSL::SSL::SSLError, SocketError, SystemCallError => e
-    raise FatalError, "while communicating with IMAP server (#{e.class.name}): #{e.message}"
+    raise FatalError, "#{e.class.name}: #{e.message} (giving up)"
   end
 
   def unsafe_connect
