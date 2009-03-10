@@ -48,6 +48,10 @@ class IMAP
   #   mailbox, but if the destination already contains messages, using this
   #   option is not advised.
   #
+  # [+max_retries+]
+  #   After a recoverable error occurs, retry the operation up to this many
+  #   times. Default is 3.
+  #
   def initialize(uri, username, password, options = {})
     raise ArgumentError, "not an IMAP URI: #{uri}" unless uri.is_a?(URI) || uri =~ REGEX_URI
     raise ArgumentError, "must provide a username and password" unless username && password
@@ -56,7 +60,7 @@ class IMAP
     @uri      = uri.is_a?(URI) ? uri : URI(uri)
     @username = username
     @password = password
-    @options  = options
+    @options  = {:max_retries => 3}.merge(options)
 
     @ids         = {}
     @imap        = nil
@@ -333,7 +337,7 @@ class IMAP
       unsafe_connect unless @imap
     rescue *RECOVERABLE_ERRORS => e
       info "#{e.class.name}: #{e.message} (will retry)"
-      raise unless (retries += 1) <= 3
+      raise unless (retries += 1) <= @options[:max_retries]
 
       @imap = nil
       sleep 1 * retries
@@ -346,7 +350,7 @@ class IMAP
       yield
     rescue *RECOVERABLE_ERRORS => e
       info "#{e.class.name}: #{e.message} (will retry)"
-      raise unless (retries += 1) <= 3
+      raise unless (retries += 1) <= @options[:max_retries]
 
       sleep 1 * retries
       retry
