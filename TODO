@@ -1,0 +1,5 @@
+Larch Todo
+
+* --dry-run option
+* Option to use a config file instead of command-line args
+* Recursive folder copy

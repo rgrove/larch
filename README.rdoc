@@ -1,0 +1,85 @@
+= Larch
+
+Larch is a tool to copy messages from one IMAP server to another quickly and
+safely. It's smart enough not to copy messages that already exist on the
+destination and robust enough to deal with ornery or misbehaving servers.
+
+Larch is particularly well-suited for copying email to, from, or between Gmail
+accounts.
+
+*Author*::    Ryan Grove (mailto:ryan@wonko.com)
+*Version*::   1.0.0 (2009-03-17)
+*Copyright*:: Copyright (c) 2009 Ryan Grove. All rights reserved.
+*License*::   GPL 2.0 (http://opensource.org/licenses/gpl-2.0.php)
+*Website*::   http://github.com/rgrove/larch
+
+== Installation
+
+Install Larch via RubyGems:
+
+  gem install larch
+
+== Usage
+
+Larch is run from the command line. At a minimum, you must specify a source
+server and a destination server in the form of IMAP URIs. You may also specify
+one or more options:
+
+  larch --from <uri> --to <uri> [options]
+
+For an overview of all available command-line options, run:
+
+  larch --help
+
+Specify a source server and a destination server and Larch will prompt you for
+the necessary usernames and passwords, then sync the contents of the source's
++INBOX+ folder to the destination:
+
+  larch --from imap://mail.example.com --to imap://imap.gmail.com
+
+To connect using SSL, specify a URI beginning with <tt>imaps://</tt>:
+
+  larch --from imaps://mail.example.com --to imaps://imap.gmail.com
+
+If you'd like to sync a folder other than +INBOX+, specify the source and
+destination folders using <tt>--from-folder</tt> and <tt>--to-folder</tt>:
+
+  larch --from imaps://mail.example.com --to imaps://imap.gmail.com \
+    --from-folder "Sent Mail" --to-folder "Sent Mail"
+
+By default Larch will create the specified folder if it doesn't already exist on
+the destination server. To prevent this, add the <tt>--no-create-folder</tt>
+option:
+
+  larch --from imaps://mail.example.com --to imaps://imap.gmail.com \
+    --from-folder "Sent Mail" --to-folder "Sent Mail" --no-create-folder
+
+== Credit
+
+The Larch::IMAP class borrows heavily from Sup[http://sup.rubyforge.org] by
+William Morgan, the source code of which should be required reading if you're
+doing anything with IMAP in Ruby.
+
+Larch uses the excellent Trollop[http://trollop.rubyforge.org] command-line
+option parser (also by William Morgan) and the
+HighLine[http://highline.rubyforge.org] command-line IO library (by James Edward
+Gray II).
+
+== License
+
+Copyright (c) 2009 Ryan Grove <ryan@wonko.com>
+
+Licensed under the GNU General Public License version 2.0.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of version 2.0 of the GNU General Public License as published by the
+Free Software Foundation.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, visit http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+or write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
+Boston, MA 02111-1307 USA.

@@ -64,6 +64,7 @@ module Larch
             begin
               msgq << source.peek(id)
             rescue Larch::IMAP::Error => e
+              # TODO: Keep failed message envelopes in a buffer for later output?
               mutex.synchronize { @failed += 1 }
               @log.error e.message
               next

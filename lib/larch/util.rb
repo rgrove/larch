@@ -1,7 +1,8 @@
 class Module
 
   # Java-style whole-method synchronization, shamelessly stolen from Sup:
-  # http://sup.rubyforge.org/. Assumes the existence of a @mutex variable.
+  # http://sup.rubyforge.org. Assumes the existence of a <tt>@mutex</tt>
+  # variable.
   def synchronized(*methods)
     methods.each do |method|
       class_eval <<-EOF

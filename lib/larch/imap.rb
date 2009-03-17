@@ -4,7 +4,7 @@ module Larch
 #
 # This class borrows heavily from Sup, the source code of which should be
 # required reading if you're doing anything with IMAP in Ruby:
-# http://sup.rubyforge.org/
+# http://sup.rubyforge.org
 class IMAP
 
   # Recoverable connection errors.
@@ -36,19 +36,18 @@ class IMAP
   #
   # The following options may also be specified:
   #
-  # [+create_mailbox+]
+  # [:create_mailbox]
   #   If +true+, the specified mailbox will be created if necessary.
   #
-  # [+fast_scan+]
+  # [:fast_scan]
   #   If +true+, a faster but less accurate method will be used to scan
   #   mailboxes. This will speed up the initial mailbox scan, but will also
-  #   reduce the effectiveness of the message unique id generator.
+  #   reduce the effectiveness of the message unique id generator. This is
+  #   probably acceptable when copying a very large mailbox to an empty mailbox,
+  #   but if the destination already contains messages, using this option is not
+  #   advised.
   #
-  #   This is probably acceptable when copying a very large mailbox to an empty
-  #   mailbox, but if the destination already contains messages, using this
-  #   option is not advised.
-  #
-  # [+max_retries+]
+  # [:max_retries]
   #   After a recoverable error occurs, retry the operation up to this many
   #   times. Default is 3.
   #
@@ -152,7 +151,7 @@ class IMAP
     imap_uid_fetch([uid], 'ENVELOPE').first.attr['ENVELOPE']
   end
 
-  # Fetches a Larch::Message instance representing the message with the
+  # Fetches a Larch::IMAP::Message struct representing the message with the
   # specified Larch message id.
   def fetch(message_id, peek = false)
     scan_mailbox
@@ -175,6 +174,7 @@ class IMAP
     @ids.has_key?(message_id)
   end
 
+  # Gets the IMAP hostname.
   def host
     @uri.host
   end
@@ -186,18 +186,20 @@ class IMAP
   end
   alias size length
 
+  # Gets the IMAP mailbox.
+  def mailbox
+    mb = @uri.path[1..-1]
+    mb.nil? || mb.empty? ? 'INBOX' : CGI.unescape(mb)
+  end
+
   # Same as fetch, but doesn't mark the message as seen.
   def peek(message_id)
     fetch(message_id, true)
   end
 
+  # Gets the IMAP port number.
   def port
     @uri.port || (ssl? ? 993 : 143)
-  end
-
-  def mailbox
-    mb = @uri.path[1..-1]
-    mb.nil? || mb.empty? ? 'INBOX' : CGI.unescape(mb)
   end
 
   # Fetches message headers from the current mailbox.
@@ -248,10 +250,12 @@ class IMAP
   end
   synchronized :scan_mailbox
 
+  # Gets the SSL status.
   def ssl?
     @uri.scheme == 'imaps'
   end
 
+  # Gets the IMAP URI.
   def uri
     @uri.to_s
   end

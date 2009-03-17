@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name     = 'larch'
   s.summary  = 'Larch syncs messages from one IMAP server to another. Awesomely.'
-  s.version  = '0.0.1.4'
+  s.version  = '1.0.0'
   s.author   = 'Ryan Grove'
   s.email    = 'ryan@wonko.com'
   s.homepage = 'http://github.com/rgrove/larch/'
@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
   s.required_ruby_version = '>= 1.8.6'
 
   s.add_dependency('highline', '~> 1.5.0')
-  s.add_dependency('trollop',  '~> 1.12')
+  s.add_dependency('trollop',  '~> 1.13')
 
   s.files = [
     'LICENSE',
