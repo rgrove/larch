@@ -42,13 +42,11 @@ module Larch
 
       @log.info "copying messages from #{source.uri} to #{dest.uri}"
 
-      source_scan = Thread.new do
-        source.scan_mailbox
-      end
+      source.connect
+      dest.connect
 
-      dest_scan = Thread.new do
-        dest.scan_mailbox
-      end
+      source_scan = Thread.new { source.scan_mailbox }
+      dest_scan   = Thread.new { dest.scan_mailbox }
 
       source_scan.join
       dest_scan.join
@@ -96,7 +94,7 @@ module Larch
             mutex.synchronize { @copied += 1 }
           end
 
-        rescue IMAP::FatalError => e
+        rescue Larch::IMAP::FatalError => e
           @log.fatal e.message
 
         rescue => e
@@ -111,6 +109,10 @@ module Larch
       source.disconnect
       dest.disconnect
 
+    rescue => e
+      @log.fatal e.message
+
+    ensure
       summary
     end
 

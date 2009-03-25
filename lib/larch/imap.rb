@@ -11,14 +11,6 @@ class IMAP
   # Maximum number of messages to fetch at once.
   MAX_FETCH_COUNT = 1024
 
-  # Recoverable connection errors.
-  RECOVERABLE_ERRORS = [
-    Errno::EPIPE,
-    Errno::ETIMEDOUT,
-    Net::IMAP::NoResponseError,
-    OpenSSL::SSL::SSLError
-  ]
-
   # Regex to capture the individual fields in an IMAP fetch command.
   REGEX_FIELDS = /([0-9A-Z\.]+\[[^\]]+\](?:<[0-9\.]+>)?|[0-9A-Z\.]+)/
 
@@ -126,7 +118,12 @@ class IMAP
     return unless @imap
 
     synchronize do
-      @imap.disconnect
+      begin
+        @imap.disconnect
+      rescue Errno::ENOTCONN => e
+        debug "#{e.class.name}: #{e.message}"
+      end
+
       @imap = nil
     end
 
@@ -359,17 +356,23 @@ class IMAP
     good_results
   end
 
-  # Connect if necessary, execute the given block, retry up to 3 times if a
-  # recoverable error occurs, die if an unrecoverable error occurs.
-  def safely
-    retries = 0
-
+  def safe_connect
     synchronize do
+      return if @imap
+
+      retries = 0
+
       begin
-        unsafe_connect unless @imap
-      rescue *RECOVERABLE_ERRORS => e
-        info "#{e.class.name}: #{e.message} (will retry)"
+        unsafe_connect
+
+      rescue Errno::EPIPE,
+             Errno::ETIMEDOUT,
+             IOError,
+             Net::IMAP::NoResponseError,
+             OpenSSL::SSL::SSLError => e
+
         raise unless (retries += 1) <= @options[:max_retries]
+        info "#{e.class.name}: #{e.message} (will retry)"
 
         @imap = nil
         sleep 1 * retries
@@ -377,70 +380,98 @@ class IMAP
       end
     end
 
+  rescue => e
+    raise FatalError, "#{e.class.name}: #{e.message} (cannot recover)"
+  end
+
+  # Connect if necessary, execute the given block, retry up to 3 times if a
+  # recoverable error occurs, die if an unrecoverable error occurs.
+  def safely
+    safe_connect
+
+    synchronize do
+      # Explicitly set Net::IMAP's client thread to the current thread to ensure
+      # that exceptions aren't raised in a dead thread.
+      @imap.client_thread = Thread.current
+    end
+
     retries = 0
 
     begin
       yield
-    rescue *RECOVERABLE_ERRORS => e
-      info "#{e.class.name}: #{e.message} (will retry)"
+
+    rescue EOFError,
+           Errno::ENOTCONN,
+           Errno::EPIPE,
+           Errno::ETIMEDOUT,
+           IOError,
+           Net::IMAP::ByeResponseError,
+           OpenSSL::SSL::SSLError => e
+
       raise unless (retries += 1) <= @options[:max_retries]
+
+      info "#{e.class.name}: #{e.message} (reconnecting)"
+
+      synchronize { @imap = nil }
+      sleep 1 * retries
+      safe_connect
+      retry
+
+    rescue Net::IMAP::BadResponseError,
+           Net::IMAP::NoResponseError,
+           Net::IMAP::ResponseParseError => e
+
+      raise unless (retries += 1) <= @options[:max_retries]
+
+      info "#{e.class.name}: #{e.message} (will retry)"
 
       sleep 1 * retries
       retry
     end
 
-  rescue Net::IMAP::NoResponseError => e
+  rescue Net::IMAP::Error => e
     raise Error, "#{e.class.name}: #{e.message} (giving up)"
 
-  rescue IOError, Net::IMAP::Error, OpenSSL::SSL::SSLError, SocketError, SystemCallError => e
-    raise FatalError, "#{e.class.name}: #{e.message} (giving up)"
+  rescue Larch::Error => e
+    raise
+
+  rescue => e
+    raise FatalError, "#{e.class.name}: #{e.message} (cannot recover)"
   end
 
   def unsafe_connect
     info "connecting..."
 
-    exception = nil
+    @imap = Net::IMAP.new(host, port, ssl?)
 
-    Thread.new do
-      begin
-        @imap = Net::IMAP.new(host, port, ssl?)
+    info "connected on port #{port}" << (ssl? ? ' using SSL' : '')
 
-        info "connected on port #{port}" << (ssl? ? ' using SSL' : '')
+    auth_methods = ['PLAIN']
+    tried        = []
 
-        auth_methods = ['PLAIN']
-        tried        = []
+    ['LOGIN', 'CRAM-MD5'].each do |method|
+      auth_methods << method if @imap.capability.include?("AUTH=#{method}")
+    end
 
-        ['LOGIN', 'CRAM-MD5'].each do |method|
-          auth_methods << method if @imap.capability.include?("AUTH=#{method}")
-        end
+    begin
+      tried << method = auth_methods.pop
 
-        begin
-          tried << method = auth_methods.pop
+      debug "authenticating using #{method}"
 
-          debug "authenticating using #{method}"
-
-          if method == 'PLAIN'
-            @imap.login(@username, @password)
-          else
-            @imap.authenticate(method, @username, @password)
-          end
-
-          info "authenticated using #{method}"
-
-        rescue Net::IMAP::BadResponseError, Net::IMAP::NoResponseError => e
-          debug "#{method} auth failed: #{e.message}"
-          retry unless auth_methods.empty?
-
-          raise e, "#{e.message} (tried #{tried.join(', ')})"
-        end
-
-      rescue => e
-        exception = e
-        error e.message
+      if method == 'PLAIN'
+        @imap.login(@username, @password)
+      else
+        @imap.authenticate(method, @username, @password)
       end
-    end.join
 
-    raise exception if exception
+      info "authenticated using #{method}"
+
+    rescue Net::IMAP::BadResponseError, Net::IMAP::NoResponseError => e
+      debug "#{method} auth failed: #{e.message}"
+      retry unless auth_methods.empty?
+
+      raise e, "#{e.message} (tried #{tried.join(', ')})"
+    end
   end
 end
 

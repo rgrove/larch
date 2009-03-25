@@ -86,7 +86,7 @@ EOS
   unless RUBY_PLATFORM =~ /mswin|mingw|bccwin|wince|java/
     begin
       for sig in [:SIGINT, :SIGQUIT, :SIGTERM]
-        trap(sig) { @log.fatal "Interrupted (#{sig})"; summary; exit }
+        trap(sig) { @log.fatal "Interrupted (#{sig})"; exit }
       end
     rescue => e
     end
