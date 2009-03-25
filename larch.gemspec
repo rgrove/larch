@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name     = 'larch'
   s.summary  = 'Larch syncs messages from one IMAP server to another. Awesomely.'
-  s.version  = '1.0.0.1'
+  s.version  = '1.0.0.2'
   s.author   = 'Ryan Grove'
   s.email    = 'ryan@wonko.com'
   s.homepage = 'http://github.com/rgrove/larch/'
