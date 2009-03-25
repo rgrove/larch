@@ -8,6 +8,9 @@ module Larch
 class IMAP
   include MonitorMixin
 
+  # Maximum number of messages to fetch at once.
+  MAX_FETCH_COUNT = 1024
+
   # Recoverable connection errors.
   RECOVERABLE_ERRORS = [
     Errno::EPIPE,
@@ -284,7 +287,19 @@ class IMAP
   # Fetches the specified _fields_ for the specified message sequence id(s) from
   # the IMAP server.
   def imap_fetch(ids, fields)
-    data = safely { @imap.fetch(ids, fields) }
+    ids = ids.to_a
+
+    data = safely do
+      pos     = 0
+      results = []
+
+      while pos < ids.length
+        results += @imap.fetch(ids[pos, MAX_FETCH_COUNT], fields)
+        pos += MAX_FETCH_COUNT
+      end
+
+      results
+    end
 
     # If fields isn't an array, make it one.
     fields = REGEX_FIELDS.match(fields).captures unless fields.is_a?(Array)
@@ -309,7 +324,19 @@ class IMAP
   # Fetches the specified _fields_ for the specified UID(s) from the IMAP
   # server.
   def imap_uid_fetch(uids, fields)
-    data = safely { @imap.uid_fetch(uids, fields) }
+    uids = uids.to_a
+
+    data = safely do
+      pos     = 0
+      results = []
+
+      while pos < uids.length
+        results += @imap.uid_fetch(uids[pos, MAX_FETCH_COUNT], fields)
+        pos += MAX_FETCH_COUNT
+      end
+
+      results
+    end
 
     # If fields isn't an array, make it one.
     fields = REGEX_FIELDS.match(fields).captures unless fields.is_a?(Array)
