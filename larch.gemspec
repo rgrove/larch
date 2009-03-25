@@ -15,7 +15,9 @@ Gem::Specification.new do |s|
   s.add_dependency('trollop',  '~> 1.13')
 
   s.files = [
+    'HISTORY',
     'LICENSE',
+    'README.rdoc',
     'bin/larch',
     'lib/larch.rb',
     'lib/larch/errors.rb',

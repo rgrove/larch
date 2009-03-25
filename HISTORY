@@ -1,0 +1,14 @@
+Larch History
+================================================================================
+
+Version 1.0.1 (?)
+  * Much more robust handling of unexpected server disconnects and dropped
+    connections.
+  * Fetch message headers in blocks of up to 1024 at a time rather than all at
+    once, to prevent potential problems with certain servers when a mailbox
+    contains a huge number of messages.
+  * Don't try to trap POSIX signals on platforms that aren't likely to support
+    them, and don't die if the platform sniffing doesn't save us.
+
+Version 1.0.0 (2009-03-17)
+  * First release.
