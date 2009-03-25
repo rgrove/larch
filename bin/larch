@@ -83,8 +83,13 @@ EOS
       :fast_scan      => options[:fast_scan],
       :max_retries    => options[:max_retries])
 
-  for sig in [:SIGINT, :SIGQUIT, :SIGTERM]
-    trap(sig) { @log.fatal "Interrupted (#{sig})"; summary; exit }
+  unless RUBY_PLATFORM =~ /mswin|mingw|bccwin|wince|java/
+    begin
+      for sig in [:SIGINT, :SIGQUIT, :SIGTERM]
+        trap(sig) { @log.fatal "Interrupted (#{sig})"; summary; exit }
+      end
+    rescue => e
+    end
   end
 
   copy(source, dest)
