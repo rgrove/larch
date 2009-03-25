@@ -6,6 +6,7 @@ module Larch
 # required reading if you're doing anything with IMAP in Ruby:
 # http://sup.rubyforge.org
 class IMAP
+  include MonitorMixin
 
   # Recoverable connection errors.
   RECOVERABLE_ERRORS = [
@@ -52,6 +53,8 @@ class IMAP
   #   times. Default is 3.
   #
   def initialize(uri, username, password, options = {})
+    super()
+
     raise ArgumentError, "not an IMAP URI: #{uri}" unless uri.is_a?(URI) || uri =~ REGEX_URI
     raise ArgumentError, "must provide a username and password" unless username && password
     raise ArgumentError, "options must be a Hash" unless options.is_a?(Hash)
@@ -66,7 +69,6 @@ class IMAP
     @last_id     = 0
     @last_scan   = nil
     @message_ids = nil
-    @mutex       = Mutex.new
 
     # Create private convenience methods (debug, info, warn, etc.) to make
     # logging easier.
@@ -89,18 +91,16 @@ class IMAP
     return false if has_message?(message)
 
     safely do
-      @mutex.synchronize do
-        begin
-          @imap.select(mailbox)
-        rescue Net::IMAP::NoResponseError => e
-          if @options[:create_mailbox]
-            info "creating mailbox: #{mailbox}"
-            @imap.create(mailbox)
-            retry
-          end
-
-          raise
+      begin
+        @imap.select(mailbox)
+      rescue Net::IMAP::NoResponseError => e
+        if @options[:create_mailbox]
+          info "creating mailbox: #{mailbox}"
+          @imap.create(mailbox)
+          retry
         end
+
+        raise
       end
 
       debug "appending message: #{message.id}"
@@ -122,20 +122,19 @@ class IMAP
   def disconnect
     return unless @imap
 
-    @imap.disconnect
-    @imap = nil
+    synchronize do
+      @imap.disconnect
+      @imap = nil
+    end
 
     info "disconnected"
   end
-  synchronized :disconnect
 
   # Iterates through Larch message ids in this mailbox, yielding each one to the
   # provided block.
   def each
-    ids = @mutex.synchronize do
-      unsync_scan_mailbox
-      @ids
-    end
+    scan_mailbox
+    ids = @ids
 
     ids.each_key {|id| yield id }
   end
@@ -204,51 +203,52 @@ class IMAP
 
   # Fetches message headers from the current mailbox.
   def scan_mailbox
-    return if @last_scan && (Time.now - @last_scan) < SCAN_INTERVAL
+    synchronize do
+      return if @last_scan && (Time.now - @last_scan) < SCAN_INTERVAL
 
-    last_id = safely do
-      begin
-        @imap.examine(mailbox)
-      rescue Net::IMAP::NoResponseError => e
-        return if @options[:create_mailbox]
-        raise FatalError, "unable to open mailbox: #{e.message}"
+      last_id = safely do
+        begin
+          @imap.examine(mailbox)
+        rescue Net::IMAP::NoResponseError => e
+          return if @options[:create_mailbox]
+          raise FatalError, "unable to open mailbox: #{e.message}"
+        end
+
+        @imap.responses['EXISTS'].last
       end
 
-      @imap.responses['EXISTS'].last
-    end
+      @last_scan = Time.now
+      return if last_id == @last_id
 
-    @last_scan = Time.now
-    return if last_id == @last_id
+      range    = (@last_id + 1)..last_id
+      @last_id = last_id
 
-    range    = (@last_id + 1)..last_id
-    @last_id = last_id
+      info "fetching message headers #{range}" <<
+          (@options[:fast_scan] ? ' (fast scan)' : '')
 
-    info "fetching message headers #{range}" <<
-        (@options[:fast_scan] ? ' (fast scan)' : '')
-
-    fields = if @options[:fast_scan]
-      ['UID', 'RFC822.SIZE', 'INTERNALDATE']
-    else
-      "(UID BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)] RFC822.SIZE INTERNALDATE)"
-    end
-
-    imap_fetch(range, fields).each do |data|
-      id = create_id(data)
-
-      unless uid = data.attr['UID']
-        error "UID not in IMAP response for message: #{id}"
-        next
+      fields = if @options[:fast_scan]
+        ['UID', 'RFC822.SIZE', 'INTERNALDATE']
+      else
+        "(UID BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)] RFC822.SIZE INTERNALDATE)"
       end
 
-      if @ids.has_key?(id) && Larch.log.level == :debug
-        envelope = imap_uid_fetch([uid], 'ENVELOPE').first.attr['ENVELOPE']
-        debug "duplicate message? #{id} (Subject: #{envelope.subject})"
-      end
+      imap_fetch(range, fields).each do |data|
+        id = create_id(data)
 
-      @ids[id] = uid
+        unless uid = data.attr['UID']
+          error "UID not in IMAP response for message: #{id}"
+          next
+        end
+
+        if @ids.has_key?(id) && Larch.log.level == :debug
+          envelope = imap_uid_fetch([uid], 'ENVELOPE').first.attr['ENVELOPE']
+          debug "duplicate message? #{id} (Subject: #{envelope.subject})"
+        end
+
+        @ids[id] = uid
+      end
     end
   end
-  synchronized :scan_mailbox
 
   # Gets the SSL status.
   def ssl?
@@ -337,15 +337,17 @@ class IMAP
   def safely
     retries = 0
 
-    begin
-      unsafe_connect unless @imap
-    rescue *RECOVERABLE_ERRORS => e
-      info "#{e.class.name}: #{e.message} (will retry)"
-      raise unless (retries += 1) <= @options[:max_retries]
+    synchronize do
+      begin
+        unsafe_connect unless @imap
+      rescue *RECOVERABLE_ERRORS => e
+        info "#{e.class.name}: #{e.message} (will retry)"
+        raise unless (retries += 1) <= @options[:max_retries]
 
-      @imap = nil
-      sleep 1 * retries
-      retry
+        @imap = nil
+        sleep 1 * retries
+        retry
+      end
     end
 
     retries = 0

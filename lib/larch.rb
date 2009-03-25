@@ -5,11 +5,10 @@ $:.uniq!
 require 'cgi'
 require 'digest/md5'
 require 'net/imap'
-require 'thread'
+require 'monitor'
 require 'time'
 require 'uri'
 
-require 'larch/util'
 require 'larch/errors'
 require 'larch/imap'
 require 'larch/logger'
@@ -23,9 +22,9 @@ module Larch
     def init(log_level = :info)
       @log = Logger.new(log_level)
 
-      @copied    = 0
-      @failed    = 0
-      @total     = 0
+      @copied = 0
+      @failed = 0
+      @total  = 0
     end
 
     # Copies messages from _source_ to _dest_ if they don't already exist in
@@ -37,9 +36,9 @@ module Larch
       msgq  = SizedQueue.new(8)
       mutex = Mutex.new
 
-      @copied    = 0
-      @failed    = 0
-      @total     = 0
+      @copied = 0
+      @failed = 0
+      @total  = 0
 
       @log.info "copying messages from #{source.uri} to #{dest.uri}"
 
