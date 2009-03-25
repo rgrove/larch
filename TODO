@@ -1,5 +1,9 @@
 Larch Todo
 
 * --dry-run option
-* Option to use a config file instead of command-line args
 * Recursive folder copy
+* Option to use a config file instead of command-line args
+* Option to delete messages from source after syncing, or if they already exist
+  on the destination
+* "Always on" mode that syncs messages instantly as they arrive in the source
+  mailbox
