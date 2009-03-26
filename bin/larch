@@ -74,6 +74,8 @@ EOS
   # Go go go!
   init(options[:verbosity])
 
+  Net::IMAP.debug = true if @log.level == :insane
+
   source = IMAP.new(options[:from], options[:from_user], options[:from_pass],
       :fast_scan   => options[:fast_scan],
       :max_retries => options[:max_retries])

@@ -9,6 +9,8 @@ Version 1.0.1 (?)
     contains a huge number of messages.
   * Don't try to trap POSIX signals on platforms that aren't likely to support
     them, and don't die if the platform sniffing doesn't save us.
+  * Add a new "insane" logging level, which will output all IMAP commands and
+    responses to STDERR.
 
 Version 1.0.0 (2009-03-17)
   * First release.
