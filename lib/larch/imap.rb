@@ -63,7 +63,6 @@ class IMAP
     @imap        = nil
     @last_id     = 0
     @last_scan   = nil
-    @message_ids = nil
 
     # Create private convenience methods (debug, info, warn, etc.) to make
     # logging easier.
@@ -284,76 +283,35 @@ class IMAP
   # Fetches the specified _fields_ for the specified message sequence id(s) from
   # the IMAP server.
   def imap_fetch(ids, fields)
-    ids = ids.to_a
+    ids  = ids.to_a
+    data = []
+    pos  = 0
 
-    data = safely do
-      pos     = 0
-      results = []
-
+    safely do
       while pos < ids.length
-        results += @imap.fetch(ids[pos, MAX_FETCH_COUNT], fields)
-        pos += MAX_FETCH_COUNT
+        data += @imap.fetch(ids[pos, MAX_FETCH_COUNT], fields)
+        pos  += MAX_FETCH_COUNT
       end
-
-      results
     end
 
-    # If fields isn't an array, make it one.
-    fields = REGEX_FIELDS.match(fields).captures unless fields.is_a?(Array)
-
-    # Translate BODY.PEEK to BODY in fields, since that's how it'll come back in
-    # the response.
-    fields.map! {|f| f.sub(/^BODY\.PEEK\[/, 'BODY[') }
-
-    good_results = ids.respond_to?(:member?) ?
-        data.find_all {|i| ids.member?(i.seqno) && fields.all? {|f| i.attr.member?(f) }} :
-        data.find_all {|i| ids == i.seqno && fields.all? {|f| i.attr.member?(f) }}
-
-    if good_results.empty?
-      raise FatalError, "0 out of #{data.length} items in IMAP response for message(s) #{ids} contained all requested fields: #{fields.join(', ')}"
-    elsif good_results.length < data.length
-      error "IMAP server sent #{good_results.length} results in response to a request for #{data.length} messages"
-    end
-
-    good_results
+    data
   end
 
   # Fetches the specified _fields_ for the specified UID(s) from the IMAP
   # server.
   def imap_uid_fetch(uids, fields)
     uids = uids.to_a
+    data = []
+    pos  = 0
 
-    data = safely do
-      pos     = 0
-      results = []
-
+    safely do
       while pos < uids.length
-        results += @imap.uid_fetch(uids[pos, MAX_FETCH_COUNT], fields)
-        pos += MAX_FETCH_COUNT
+        data += @imap.uid_fetch(uids[pos, MAX_FETCH_COUNT], fields)
+        pos  += MAX_FETCH_COUNT
       end
-
-      results
     end
 
-    # If fields isn't an array, make it one.
-    fields = REGEX_FIELDS.match(fields).captures unless fields.is_a?(Array)
-
-    # Translate BODY.PEEK to BODY in fields, since that's how it'll come back in
-    # the response.
-    fields.map! {|f| f.sub(/^BODY\.PEEK\[/, 'BODY[') }
-
-    good_results = data.find_all do |i|
-      i.attr.member?('UID') && uids.member?(i.attr['UID']) &&
-          fields.all? {|f| i.attr.member?(f) }
-    end
-
-    if good_results.empty?
-      raise FatalError, "0 out of #{data.length} items in IMAP response for message UID(s) #{uids.join(', ')} contained all requested fields: #{fields.join(', ')}"
-    elsif good_results.length < data.length
-      error "IMAP server sent #{good_results.length} results in response to a request for #{data.length} messages"
-    end
-
-    good_results
+    data
   end
 
   def safe_connect

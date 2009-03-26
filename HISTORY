@@ -4,6 +4,7 @@ Larch History
 Version 1.0.1 (?)
   * Much more robust handling of unexpected server disconnects and dropped
     connections.
+  * Fix excessive post-scan processing times for very large mailboxes.
   * Fetch message headers in blocks of up to 1024 at a time rather than all at
     once, to prevent potential problems with certain servers when a mailbox
     contains a huge number of messages.
