@@ -359,10 +359,11 @@ class IMAP
       yield
 
     rescue EOFError,
+           IOError,
+           Errno::ECONNRESET,
            Errno::ENOTCONN,
            Errno::EPIPE,
            Errno::ETIMEDOUT,
-           IOError,
            Net::IMAP::ByeResponseError,
            OpenSSL::SSL::SSLError => e
 
