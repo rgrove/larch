@@ -54,7 +54,7 @@ option:
   larch --from imaps://mail.example.com --to imaps://imap.gmail.com \
     --from-folder "Sent Mail" --to-folder "Sent Mail" --no-create-folder
 
-== Server Support
+== Server Compatibility
 
 Larch should work well with any server that properly supports
 IMAP4rev1[http://tools.ietf.org/html/rfc3501], and does its best to get along
@@ -78,6 +78,12 @@ more data.
 
 If this happens, Net::IMAP will continue waiting forever without passing control
 back to Larch, and you will need to manually kill and restart Larch.
+
+== Support
+
+The Larch mailing list is the best place for questions, comments, and discussion
+about Larch. You can join the list or view the archives at
+http://groups.google.com/group/larch
 
 == Credit
 
