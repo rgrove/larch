@@ -407,9 +407,10 @@ class IMAP
 
     auth_methods = ['PLAIN']
     tried        = []
+    capability   = @imap.capability
 
     ['LOGIN', 'CRAM-MD5'].each do |method|
-      auth_methods << method if @imap.capability.include?("AUTH=#{method}")
+      auth_methods << method if capability.include?("AUTH=#{method}")
     end
 
     begin
