@@ -66,15 +66,14 @@ module Larch
             end
           end
 
-        rescue Larch::WatchdogError => e
+        rescue Larch::WatchdogException => e
           Thread.current[:fetching] = false
-
-          @log.error "#{source.username}@#{source.host}: server dropped connection unexpectedly"
+          @log.debug "#{source.username}@#{source.host}: watchdog exception"
           source.noop
           retry
 
         rescue => e
-          @log.fatal "#{e.class.name}: #{e.message}"
+          @log.fatal "#{source.username}@#{source.host}: #{e.class.name}: #{e.message}"
           Kernel.abort
 
         ensure
@@ -97,6 +96,8 @@ module Larch
             end
 
             @log.info "copying message: #{from} - #{msg.envelope.subject}"
+
+            Thread.current[:last_id] = msg.id
             dest << msg
 
             mutex.synchronize { @copied += 1 }
@@ -107,18 +108,39 @@ module Larch
           @log.error e.message
           retry
 
+        rescue Larch::WatchdogException => e
+          Thread.current[:last_id] = nil
+          @log.debug "#{dest.username}@#{dest.host}: watchdog exception"
+          dest.noop
+          retry
+
         rescue => e
-          @log.fatal "#{e.class.name}: #{e.message}"
+          @log.fatal "#{dest.username}@#{dest.host}: #{e.class.name}: #{e.message}"
           Kernel.abort
         end
       end
 
       watchdog_thread = Thread.new do
+        source_flags = 0
+        dest_flags   = 0
+        dest_lastid  = nil
+
         loop do
           sleep 10
 
-          if msgq.length == 0 && source_thread[:fetching]
-            source_thread.raise(WatchdogError)
+          if msgq.length == 0 && source_thread[:fetching] && (source_flags += 1) > 1
+              source_flags = 0
+              source_thread.raise(WatchdogException)
+          end
+
+          if dest_thread[:last_id]
+            if dest_lastid == dest_thread[:last_id] && (dest_flags += 1) > 2
+              dest_flags  = 0
+              dest_lastid = nil
+              dest_thread.raise(WatchdogException)
+            else
+              dest_lastid = dest_thread[:last_id]
+            end
           end
         end
       end

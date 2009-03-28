@@ -1,6 +1,6 @@
 module Larch
   class Error < StandardError; end
-  class WatchdogError < Error; end
+  class WatchdogException < Exception; end
 
   class IMAP
     class Error < Larch::Error; end

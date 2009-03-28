@@ -212,6 +212,7 @@ class IMAP
     return if last_id == @last_id
 
     range = (@last_id + 1)..last_id
+
     @mutex.synchronize { @last_id = last_id }
 
     info "fetching message headers #{range}" <<
