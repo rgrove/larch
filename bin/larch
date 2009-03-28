@@ -22,18 +22,21 @@ EOS
     opt :from, "URI of the source IMAP server.", :short => '-f', :type => :string, :required => true
     opt :to,   "URI of the destination IMAP server.", :short => '-t', :type => :string, :required => true
 
-    text "\nOptions:"
-
-    # opt :dry_run,          "Don't actually do anything.", :short => '-n'
-    opt :fast_scan,        "Use a faster (but less accurate) method to scan mailboxes. This may result in messages being re-copied.", :short => :none
+    text "\nCopy Options:"
     opt :from_folder,      "Source folder to copy from", :short => :none, :default => 'INBOX'
     opt :from_pass,        "Source server password (Default: prompt)", :short => :none, :type => :string
     opt :from_user,        "Source server username (Default: prompt)", :short => :none, :type => :string
-    opt :max_retries,      "Maximum number of times to retry after a recoverable error", :short => :none, :default => 3
-    opt :no_create_folder, "Don't create destination folders that don't already exist", :short => :none
     opt :to_folder,        "Destination folder to copy to", :short => :none, :default => 'INBOX'
     opt :to_pass,          "Destination server password (Default: prompt)", :short => :none, :type => :string
     opt :to_user,          "Destination server username (Default: prompt)", :short => :none, :type => :string
+
+    text "\nGeneral Options:"
+    # opt :dry_run,          "Don't actually do anything.", :short => '-n'
+    opt :fast_scan,        "Use a faster (but less accurate) method to scan mailboxes. This may result in messages being re-copied.", :short => :none
+    opt :max_retries,      "Maximum number of times to retry after a recoverable error", :short => :none, :default => 3
+    opt :no_create_folder, "Don't create destination folders that don't already exist", :short => :none
+    opt :ssl_certs,        "Path to a trusted certificate bundle to use to verify server SSL certificates", :short => :none
+    opt :ssl_verify,       "Verify server SSL certificates", :short => :none
     opt :verbosity,        "Output verbosity: debug, info, warn, error, or fatal", :short => '-V', :default => 'info'
   end
 
@@ -78,17 +81,21 @@ EOS
 
   source = IMAP.new(options[:from], options[:from_user], options[:from_pass],
       :fast_scan   => options[:fast_scan],
-      :max_retries => options[:max_retries])
+      :max_retries => options[:max_retries],
+      :ssl_certs   => options[:ssl_certs] || nil,
+      :ssl_verify  => options[:ssl_verify])
 
   dest = IMAP.new(options[:to], options[:to_user], options[:to_pass],
       :create_mailbox => !options[:no_create_folder],
       :fast_scan      => options[:fast_scan],
-      :max_retries    => options[:max_retries])
+      :max_retries    => options[:max_retries],
+      :ssl_certs      => options[:ssl_certs] || nil,
+      :ssl_verify     => options[:ssl_verify])
 
   unless RUBY_PLATFORM =~ /mswin|mingw|bccwin|wince|java/
     begin
       for sig in [:SIGINT, :SIGQUIT, :SIGTERM]
-        trap(sig) { @log.fatal "Interrupted (#{sig})"; exit }
+        trap(sig) { @log.fatal "Interrupted (#{sig})"; Kernel.exit }
       end
     rescue => e
     end

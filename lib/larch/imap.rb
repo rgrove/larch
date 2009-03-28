@@ -47,6 +47,17 @@ class IMAP
   #   After a recoverable error occurs, retry the operation up to this many
   #   times. Default is 3.
   #
+  # [:ssl_certs]
+  #   Path to a trusted certificate bundle to use to verify server SSL
+  #   certificates. You can download a bundle of certificate authority root
+  #   certs at http://curl.haxx.se/ca/cacert.pem (it's up to you to verify that
+  #   this bundle hasn't been tampered with, however; don't trust it blindly).
+  #
+  # [:ssl_verify]
+  #   If +true+, server SSL certificates will be verified against the trusted
+  #   certificate bundle specified in +ssl_certs+. By default, server SSL
+  #   certificates are not verified.
+  #
   def initialize(uri, username, password, options = {})
     raise ArgumentError, "not an IMAP URI: #{uri}" unless uri.is_a?(URI) || uri =~ REGEX_URI
     raise ArgumentError, "must provide a username and password" unless username && password
@@ -55,7 +66,7 @@ class IMAP
     @uri       = uri.is_a?(URI) ? uri : URI(uri)
     @username  = username
     @password  = password
-    @options   = {:max_retries => 3}.merge(options)
+    @options   = {:max_retries => 3, :ssl_verify => false}.merge(options)
 
     @ids       = {}
     @imap      = nil
@@ -383,6 +394,11 @@ class IMAP
            OpenSSL::SSL::SSLError => e
 
       raise unless (retries += 1) <= @options[:max_retries]
+
+      # Special check to ensure that we don't retry on OpenSSL certificate
+      # verification errors.
+      raise if e.is_a?(OpenSSL::SSL::SSLError) && e.message =~ /certificate verify failed/
+
       info "#{e.class.name}: #{e.message} (will retry)"
 
       reset
@@ -449,7 +465,9 @@ class IMAP
 
     Thread.new do
       begin
-        @imap = Net::IMAP.new(host, port, ssl?)
+        @imap = Net::IMAP.new(host, port, ssl?,
+            ssl? && @options[:ssl_verify] ? @options[:ssl_certs] : nil,
+            @options[:ssl_verify])
 
         info "connected on port #{port}" << (ssl? ? ' using SSL' : '')
 
@@ -483,7 +501,6 @@ class IMAP
 
       rescue => e
         exception = e
-        error e.message
       end
     end.join
 
