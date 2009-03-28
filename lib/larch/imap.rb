@@ -6,7 +6,7 @@ module Larch
 # required reading if you're doing anything with IMAP in Ruby:
 # http://sup.rubyforge.org
 class IMAP
-  include MonitorMixin
+  attr_reader :username
 
   # Maximum number of messages to fetch at once.
   MAX_FETCH_COUNT = 1024
@@ -48,21 +48,24 @@ class IMAP
   #   times. Default is 3.
   #
   def initialize(uri, username, password, options = {})
-    super()
-
     raise ArgumentError, "not an IMAP URI: #{uri}" unless uri.is_a?(URI) || uri =~ REGEX_URI
     raise ArgumentError, "must provide a username and password" unless username && password
     raise ArgumentError, "options must be a Hash" unless options.is_a?(Hash)
 
-    @uri      = uri.is_a?(URI) ? uri : URI(uri)
-    @username = username
-    @password = password
-    @options  = {:max_retries => 3}.merge(options)
+    @uri       = uri.is_a?(URI) ? uri : URI(uri)
+    @username  = username
+    @password  = password
+    @options   = {:max_retries => 3}.merge(options)
 
-    @ids         = {}
-    @imap        = nil
-    @last_id     = 0
-    @last_scan   = nil
+    @ids       = {}
+    @imap      = nil
+    @last_id   = 0
+    @last_scan = nil
+    @mutex     = Mutex.new
+
+    # Valid mailbox states are :closed (no mailbox open), :examined (mailbox
+    # open and read-only), or :selected (mailbox open and read-write).
+    @mailbox_state = :closed
 
     # Create private convenience methods (debug, info, warn, etc.) to make
     # logging easier.
@@ -85,17 +88,7 @@ class IMAP
     return false if has_message?(message)
 
     safely do
-      begin
-        @imap.select(mailbox)
-      rescue Net::IMAP::NoResponseError => e
-        if @options[:create_mailbox]
-          info "creating mailbox: #{mailbox}"
-          @imap.create(mailbox)
-          retry
-        end
-
-        raise
-      end
+      imap_select(!!@options[:create_mailbox])
 
       debug "appending message: #{message.id}"
       @imap.append(mailbox, message.rfc822, message.flags, message.internaldate)
@@ -116,15 +109,13 @@ class IMAP
   def disconnect
     return unless @imap
 
-    synchronize do
-      begin
-        @imap.disconnect
-      rescue Errno::ENOTCONN => e
-        debug "#{e.class.name}: #{e.message}"
-      end
-
-      @imap = nil
+    begin
+      @imap.disconnect
+    rescue Errno::ENOTCONN => e
+      debug "#{e.class.name}: #{e.message}"
     end
+
+    reset
 
     info "disconnected"
   end
@@ -190,6 +181,10 @@ class IMAP
     mb.nil? || mb.empty? ? 'INBOX' : CGI.unescape(mb)
   end
 
+  def noop
+    safely { @imap.noop }
+  end
+
   # Same as fetch, but doesn't mark the message as seen.
   def peek(message_id)
     fetch(message_id, true)
@@ -202,50 +197,46 @@ class IMAP
 
   # Fetches message headers from the current mailbox.
   def scan_mailbox
-    synchronize do
-      return if @last_scan && (Time.now - @last_scan) < SCAN_INTERVAL
+    return if @last_scan && (Time.now - @last_scan) < SCAN_INTERVAL
 
-      last_id = safely do
-        begin
-          @imap.examine(mailbox)
-        rescue Net::IMAP::NoResponseError => e
-          return if @options[:create_mailbox]
-          raise FatalError, "unable to open mailbox: #{e.message}"
-        end
+    begin
+      imap_examine
+    rescue Error => e
+      return if @options[:create_mailbox]
+      raise
+    end
 
-        @imap.responses['EXISTS'].last
+    last_id = safely { @imap.responses['EXISTS'].last }
+
+    @mutex.synchronize { @last_scan = Time.now }
+    return if last_id == @last_id
+
+    range = (@last_id + 1)..last_id
+    @mutex.synchronize { @last_id = last_id }
+
+    info "fetching message headers #{range}" <<
+        (@options[:fast_scan] ? ' (fast scan)' : '')
+
+    fields = if @options[:fast_scan]
+      ['UID', 'RFC822.SIZE', 'INTERNALDATE']
+    else
+      "(UID BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)] RFC822.SIZE INTERNALDATE)"
+    end
+
+    imap_fetch(range, fields).each do |data|
+      id = create_id(data)
+
+      unless uid = data.attr['UID']
+        error "UID not in IMAP response for message: #{id}"
+        next
       end
 
-      @last_scan = Time.now
-      return if last_id == @last_id
-
-      range    = (@last_id + 1)..last_id
-      @last_id = last_id
-
-      info "fetching message headers #{range}" <<
-          (@options[:fast_scan] ? ' (fast scan)' : '')
-
-      fields = if @options[:fast_scan]
-        ['UID', 'RFC822.SIZE', 'INTERNALDATE']
-      else
-        "(UID BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)] RFC822.SIZE INTERNALDATE)"
+      if Larch.log.level == :debug && @ids.has_key?(id)
+        envelope = imap_uid_fetch([uid], 'ENVELOPE').first.attr['ENVELOPE']
+        debug "duplicate message? #{id} (Subject: #{envelope.subject})"
       end
 
-      imap_fetch(range, fields).each do |data|
-        id = create_id(data)
-
-        unless uid = data.attr['UID']
-          error "UID not in IMAP response for message: #{id}"
-          next
-        end
-
-        if @ids.has_key?(id) && Larch.log.level == :debug
-          envelope = imap_uid_fetch([uid], 'ENVELOPE').first.attr['ENVELOPE']
-          debug "duplicate message? #{id} (Subject: #{envelope.subject})"
-        end
-
-        @ids[id] = uid
-      end
+      @mutex.synchronize { @ids[id] = uid }
     end
   end
 
@@ -280,6 +271,27 @@ class IMAP
     end
   end
 
+  # Examines the mailbox. If _force_ is true, the mailbox will be examined even
+  # if it is already selected (which isn't necessary unless you want to ensure
+  # that it's in a read-only state).
+  def imap_examine(force = false)
+    return if @mailbox_state == :examined || (!force && @mailbox_state == :selected)
+
+    safely do
+      begin
+        @mutex.synchronize { @mailbox_state = :closed }
+
+        debug "examining mailbox: #{mailbox}"
+        @imap.examine(mailbox)
+
+        @mutex.synchronize { @mailbox_state = :examined }
+
+      rescue Net::IMAP::NoResponseError => e
+        raise Error, "unable to examine mailbox: #{e.message}"
+      end
+    end
+  end
+
   # Fetches the specified _fields_ for the specified message sequence id(s) from
   # the IMAP server.
   def imap_fetch(ids, fields)
@@ -287,14 +299,46 @@ class IMAP
     data = []
     pos  = 0
 
-    safely do
-      while pos < ids.length
+    while pos < ids.length
+      safely do
+        imap_examine
+
         data += @imap.fetch(ids[pos, MAX_FETCH_COUNT], fields)
         pos  += MAX_FETCH_COUNT
       end
     end
 
     data
+  end
+
+  # Selects the mailbox if it is not already selected. If the mailbox does not
+  # exist and _create_ is +true+, it will be created. Otherwise, a
+  # Larch::IMAP::Error will be raised.
+  def imap_select(create = false)
+    return if @mailbox_state == :selected
+
+    safely do
+      begin
+        @mutex.synchronize { @mailbox_state = :closed }
+
+        debug "selecting mailbox: #{mailbox}"
+        @imap.select(mailbox)
+
+        @mutex.synchronize { @mailbox_state = :selected }
+
+      rescue Net::IMAP::NoResponseError => e
+        raise Error, "unable to select mailbox: #{e.message}" unless create
+
+        info "creating mailbox: #{mailbox}"
+
+        begin
+          @imap.create(mailbox)
+          retry
+        rescue => e
+          raise Error, "unable to create mailbox: #{e.message}"
+        end
+      end
+    end
   end
 
   # Fetches the specified _fields_ for the specified UID(s) from the IMAP
@@ -304,8 +348,10 @@ class IMAP
     data = []
     pos  = 0
 
-    safely do
-      while pos < uids.length
+    while pos < uids.length
+      safely do
+        imap_examine
+
         data += @imap.uid_fetch(uids[pos, MAX_FETCH_COUNT], fields)
         pos  += MAX_FETCH_COUNT
       end
@@ -314,28 +360,33 @@ class IMAP
     data
   end
 
+  # Resets the connection and mailbox state.
+  def reset
+    @mutex.synchronize do
+      @imap          = nil
+      @mailbox_state = :closed
+    end
+  end
+
   def safe_connect
-    synchronize do
-      return if @imap
+    return if @imap
 
-      retries = 0
+    retries = 0
 
-      begin
-        unsafe_connect
+    begin
+      unsafe_connect
 
-      rescue Errno::EPIPE,
-             Errno::ETIMEDOUT,
-             IOError,
-             Net::IMAP::NoResponseError,
-             OpenSSL::SSL::SSLError => e
+    rescue Errno::ECONNRESET,
+           Errno::EPIPE,
+           Errno::ETIMEDOUT,
+           OpenSSL::SSL::SSLError => e
 
-        raise unless (retries += 1) <= @options[:max_retries]
-        info "#{e.class.name}: #{e.message} (will retry)"
+      raise unless (retries += 1) <= @options[:max_retries]
+      info "#{e.class.name}: #{e.message} (will retry)"
 
-        @imap = nil
-        sleep 1 * retries
-        retry
-      end
+      reset
+      sleep 1 * retries
+      retry
     end
 
   rescue => e
@@ -347,20 +398,12 @@ class IMAP
   def safely
     safe_connect
 
-    synchronize do
-      # Explicitly set Net::IMAP's client thread to the current thread to ensure
-      # that exceptions aren't raised in a dead thread.
-      @imap.client_thread = Thread.current
-    end
-
     retries = 0
 
     begin
       yield
 
-    rescue EOFError,
-           IOError,
-           Errno::ECONNRESET,
+    rescue Errno::ECONNRESET,
            Errno::ENOTCONN,
            Errno::EPIPE,
            Errno::ETIMEDOUT,
@@ -371,7 +414,7 @@ class IMAP
 
       info "#{e.class.name}: #{e.message} (reconnecting)"
 
-      synchronize { @imap = nil }
+      reset
       sleep 1 * retries
       safe_connect
       retry
@@ -388,11 +431,11 @@ class IMAP
       retry
     end
 
-  rescue Net::IMAP::Error => e
-    raise Error, "#{e.class.name}: #{e.message} (giving up)"
-
   rescue Larch::Error => e
     raise
+
+  rescue Net::IMAP::Error => e
+    raise Error, "#{e.class.name}: #{e.message} (giving up)"
 
   rescue => e
     raise FatalError, "#{e.class.name}: #{e.message} (cannot recover)"
@@ -401,37 +444,49 @@ class IMAP
   def unsafe_connect
     info "connecting..."
 
-    @imap = Net::IMAP.new(host, port, ssl?)
+    exception = nil
 
-    info "connected on port #{port}" << (ssl? ? ' using SSL' : '')
+    Thread.new do
+      begin
+        @imap = Net::IMAP.new(host, port, ssl?)
 
-    auth_methods = ['PLAIN']
-    tried        = []
-    capability   = @imap.capability
+        info "connected on port #{port}" << (ssl? ? ' using SSL' : '')
 
-    ['LOGIN', 'CRAM-MD5'].each do |method|
-      auth_methods << method if capability.include?("AUTH=#{method}")
-    end
+        auth_methods = ['PLAIN']
+        tried        = []
+        capability   = @imap.capability
 
-    begin
-      tried << method = auth_methods.pop
+        ['LOGIN', 'CRAM-MD5'].each do |method|
+          auth_methods << method if capability.include?("AUTH=#{method}")
+        end
 
-      debug "authenticating using #{method}"
+        begin
+          tried << method = auth_methods.pop
 
-      if method == 'PLAIN'
-        @imap.login(@username, @password)
-      else
-        @imap.authenticate(method, @username, @password)
+          debug "authenticating using #{method}"
+
+          if method == 'PLAIN'
+            @imap.login(@username, @password)
+          else
+            @imap.authenticate(method, @username, @password)
+          end
+
+          info "authenticated using #{method}"
+
+        rescue Net::IMAP::BadResponseError, Net::IMAP::NoResponseError => e
+          debug "#{method} auth failed: #{e.message}"
+          retry unless auth_methods.empty?
+
+          raise e, "#{e.message} (tried #{tried.join(', ')})"
+        end
+
+      rescue => e
+        exception = e
+        error e.message
       end
+    end.join
 
-      info "authenticated using #{method}"
-
-    rescue Net::IMAP::BadResponseError, Net::IMAP::NoResponseError => e
-      debug "#{method} auth failed: #{e.message}"
-      retry unless auth_methods.empty?
-
-      raise e, "#{e.message} (tried #{tried.join(', ')})"
-    end
+    raise exception if exception
   end
 end
 

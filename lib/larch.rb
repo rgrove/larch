@@ -45,21 +45,19 @@ module Larch
       source.connect
       dest.connect
 
-      source_scan = Thread.new { source.scan_mailbox }
-      dest_scan   = Thread.new { dest.scan_mailbox }
-
-      source_scan.join
-      dest_scan.join
-
-      source_copy = Thread.new do
+      source_thread = Thread.new do
         begin
+          source.scan_mailbox
           mutex.synchronize { @total = source.length }
 
           source.each do |id|
             next if dest.has_message?(id)
 
             begin
+              Thread.current[:fetching] = true
               msgq << source.peek(id)
+              Thread.current[:fetching] = false
+
             rescue Larch::IMAP::Error => e
               # TODO: Keep failed message envelopes in a buffer for later output?
               mutex.synchronize { @failed += 1 }
@@ -68,16 +66,26 @@ module Larch
             end
           end
 
+        rescue Larch::WatchdogError => e
+          Thread.current[:fetching] = false
+
+          @log.error "#{source.username}@#{source.host}: server dropped connection unexpectedly"
+          source.noop
+          retry
+
         rescue => e
-          @log.fatal e.message
+          @log.fatal "#{e.class.name}: #{e.message}"
+          Kernel.abort
 
         ensure
           msgq << :finished
         end
       end
 
-      dest_copy = Thread.new do
+      dest_thread = Thread.new do
         begin
+          dest.scan_mailbox
+
           while msg = msgq.pop do
             break if msg == :finished
 
@@ -94,17 +102,28 @@ module Larch
             mutex.synchronize { @copied += 1 }
           end
 
-        rescue Larch::IMAP::FatalError => e
-          @log.fatal e.message
-
-        rescue => e
+        rescue Larch::IMAP::Error => e
           mutex.synchronize { @failed += 1 }
           @log.error e.message
           retry
+
+        rescue => e
+          @log.fatal "#{e.class.name}: #{e.message}"
+          Kernel.abort
         end
       end
 
-      dest_copy.join
+      watchdog_thread = Thread.new do
+        loop do
+          sleep 10
+
+          if msgq.length == 0 && source_thread[:fetching]
+            source_thread.raise(WatchdogError)
+          end
+        end
+      end
+
+      dest_thread.join
 
       source.disconnect
       dest.disconnect
