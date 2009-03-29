@@ -101,5 +101,5 @@ EOS
     end
   end
 
-  copy(source, dest)
+  copy_folder(source, dest)
 end
