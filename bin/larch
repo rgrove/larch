@@ -24,18 +24,18 @@ EOS
 
     text "\nCopy Options:"
     opt :from_folder,      "Source folder to copy from", :short => :none, :default => 'INBOX'
-    opt :from_pass,        "Source server password (Default: prompt)", :short => :none, :type => :string
-    opt :from_user,        "Source server username (Default: prompt)", :short => :none, :type => :string
+    opt :from_pass,        "Source server password (default: prompt)", :short => :none, :type => :string
+    opt :from_user,        "Source server username (default: prompt)", :short => :none, :type => :string
     opt :to_folder,        "Destination folder to copy to", :short => :none, :default => 'INBOX'
-    opt :to_pass,          "Destination server password (Default: prompt)", :short => :none, :type => :string
-    opt :to_user,          "Destination server username (Default: prompt)", :short => :none, :type => :string
+    opt :to_pass,          "Destination server password (default: prompt)", :short => :none, :type => :string
+    opt :to_user,          "Destination server username (default: prompt)", :short => :none, :type => :string
 
     text "\nGeneral Options:"
     # opt :dry_run,          "Don't actually do anything.", :short => '-n'
     opt :fast_scan,        "Use a faster (but less accurate) method to scan mailboxes. This may result in messages being re-copied.", :short => :none
     opt :max_retries,      "Maximum number of times to retry after a recoverable error", :short => :none, :default => 3
     opt :no_create_folder, "Don't create destination folders that don't already exist", :short => :none
-    opt :ssl_certs,        "Path to a trusted certificate bundle to use to verify server SSL certificates", :short => :none
+    opt :ssl_certs,        "Path to a trusted certificate bundle to use to verify server SSL certificates", :short => :none, :type => :string
     opt :ssl_verify,       "Verify server SSL certificates", :short => :none
     opt :verbosity,        "Output verbosity: debug, info, warn, error, or fatal", :short => '-V', :default => 'info'
   end
