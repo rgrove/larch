@@ -5,6 +5,7 @@ module Larch
   class IMAP
     class Error < Larch::Error; end
     class FatalError < Error; end
-    class NotFoundError < Error; end
+    class MailboxNotFoundError < Error; end
+    class MessageNotFoundError < Error; end
   end
 end
