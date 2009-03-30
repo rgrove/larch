@@ -6,7 +6,7 @@ module Larch
 # required reading if you're doing anything with IMAP in Ruby:
 # http://sup.rubyforge.org
 class IMAP
-  attr_reader :conn, :options, :username
+  attr_reader :conn, :options
 
   # URI format validation regex.
   REGEX_URI = URI.regexp(['imap', 'imaps'])
@@ -16,9 +16,9 @@ class IMAP
   Message = Struct.new(:id, :envelope, :rfc822, :flags, :internaldate)
 
   # Initializes a new Larch::IMAP instance that will connect to the specified
-  # IMAP URI and authenticate using the specified _username_ and _password_.
+  # IMAP URI.
   #
-  # The following options may also be specified:
+  # In addition to the URI, the following options may also be specified:
   #
   # [:create_mailbox]
   #   If +true+, mailboxes that don't already exist will be created if
@@ -47,15 +47,14 @@ class IMAP
   #   certificate bundle specified in +ssl_certs+. By default, server SSL
   #   certificates are not verified.
   #
-  def initialize(uri, username, password, options = {})
+  def initialize(uri, options = {})
     raise ArgumentError, "not an IMAP URI: #{uri}" unless uri.is_a?(URI) || uri =~ REGEX_URI
-    raise ArgumentError, "must provide a username and password" unless username && password
     raise ArgumentError, "options must be a Hash" unless options.is_a?(Hash)
 
-    @uri       = uri.is_a?(URI) ? uri : URI(uri)
-    @username  = username
-    @password  = password
-    @options   = {:max_retries => 3, :ssl_verify => false}.merge(options)
+    @options = {:max_retries => 3, :ssl_verify => false}.merge(options)
+    @uri     = uri.is_a?(URI) ? uri : URI(uri)
+
+    raise ArgumentError, "must provide a username and password" unless @uri.user && @uri.password
 
     @conn      = nil
     @mailboxes = {}
@@ -66,7 +65,7 @@ class IMAP
     Logger::LEVELS.each_key do |level|
       IMAP.class_eval do
         define_method(level) do |msg|
-          Larch.log.log(level, "#{@username}@#{host}: #{msg}")
+          Larch.log.log(level, "#{username}@#{host}: #{msg}")
         end
 
         private level
@@ -125,7 +124,7 @@ class IMAP
     rescue MailboxNotFoundError => e
       raise unless @options[:create_mailbox] && retries == 0
 
-      info "creating mailbox: #{mailbox}"
+      info "creating mailbox: #{name}"
       safely { @conn.create(name) }
 
       retries += 1
@@ -133,8 +132,14 @@ class IMAP
     end
   end
 
+  # Sends an IMAP NOOP command.
   def noop
     safely { @conn.noop }
+  end
+
+  # Gets the IMAP password.
+  def password
+    CGI.unescape(@uri.password)
   end
 
   # Gets the IMAP port number.
@@ -206,6 +211,11 @@ class IMAP
     mb.nil? || mb.empty? ? nil : CGI.unescape(mb)
   end
 
+  # Gets the IMAP username.
+  def username
+    CGI.unescape(@uri.user)
+  end
+
   private
 
   # Resets the connection and mailbox state.
@@ -273,9 +283,9 @@ class IMAP
           debug "authenticating using #{method}"
 
           if method == 'PLAIN'
-            @conn.login(@username, @password)
+            @conn.login(username, password)
           else
-            @conn.authenticate(method, @username, @password)
+            @conn.authenticate(method, username, password)
           end
 
           info "authenticated using #{method}"

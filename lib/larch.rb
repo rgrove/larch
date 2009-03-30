@@ -28,34 +28,32 @@ module Larch
       @total  = 0
     end
 
-    # Copies messages from _source_ to _dest_ if they don't already exist in
-    # _dest_. Both _source_ and _dest_ must be instances of Larch::IMAP.
-    def copy_folder(source, dest)
-      raise ArgumentError, "source must be a Larch::IMAP instance" unless source.is_a?(IMAP)
-      raise ArgumentError, "dest must be a Larch::IMAP instance" unless dest.is_a?(IMAP)
+    def copy_folder(imap_from, imap_to)
+      raise ArgumentError, "source must be a Larch::IMAP instance" unless imap_from.is_a?(IMAP)
+      raise ArgumentError, "dest must be a Larch::IMAP instance" unless imap_to.is_a?(IMAP)
 
       @copied = 0
       @failed = 0
       @total  = 0
 
-      source_mb_name = source.uri_mailbox || 'INBOX'
-      dest_mb_name   = dest.uri_mailbox || 'INBOX'
+      mailbox_from_name = imap_from.uri_mailbox || 'INBOX'
+      mailbox_to_name   = imap_to.uri_mailbox || 'INBOX'
 
-      @log.info "copying messages from #{source.host}/#{source_mb_name} to #{dest.host}/#{dest_mb_name}"
+      @log.info "copying messages from #{imap_from.host}/#{mailbox_from_name} to #{imap_to.host}/#{mailbox_to_name}"
 
-      source.connect
-      dest.connect
+      imap_from.connect
+      imap_to.connect
 
-      source_mb = source.mailbox(source_mb_name)
-      dest_mb   = dest.mailbox(dest_mb_name)
+      mailbox_from = imap_from.mailbox(mailbox_from_name)
+      mailbox_to   = imap_to.mailbox(mailbox_to_name)
 
-      @total = source_mb.length
+      @total = mailbox_from.length
 
-      source_mb.each do |id|
-        next if dest_mb.has_message?(id)
+      mailbox_from.each do |id|
+        next if mailbox_to.has_message?(id)
 
         begin
-          msg = source_mb.peek(id)
+          msg = mailbox_from.peek(id)
 
           if msg.envelope.from
             env_from = msg.envelope.from.first
@@ -66,7 +64,7 @@ module Larch
 
           @log.info "copying message: #{from} - #{msg.envelope.subject}"
 
-          dest_mb << msg
+          mailbox_to << msg
           @copied += 1
 
         rescue Larch::IMAP::Error => e
@@ -77,8 +75,8 @@ module Larch
         end
       end
 
-      source.disconnect
-      dest.disconnect
+      imap_from.disconnect
+      imap_to.disconnect
 
     rescue => e
       @log.fatal e.message
