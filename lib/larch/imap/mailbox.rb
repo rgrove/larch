@@ -165,7 +165,7 @@ class Mailbox
   # Subscribes to this mailbox.
   def subscribe(force = false)
     return if subscribed? && !force
-    @imap.safely { @imap.conn.subscribe(@name) }
+    @imap.safely { @imap.conn.subscribe(@name) } unless @imap.options[:dry_run]
     @mutex.synchronize { @subscribed = true }
   end
 
@@ -177,7 +177,7 @@ class Mailbox
   # Unsubscribes to this mailbox.
   def unsubscribe(force = false)
     return unless subscribed? || force
-    @imap.safely { @imap.conn.unsubscribe(@name) }
+    @imap.safely { @imap.conn.unsubscribe(@name) } unless @imap.options[:dry_run]
     @mutex.synchronize { @subscribed = false }
   end
 
