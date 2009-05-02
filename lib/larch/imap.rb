@@ -312,15 +312,17 @@ class IMAP
   end
 
   def update_mailboxes
-    list = safely { @conn.list('', '*') }
+    all        = safely { @conn.list('', '*') }
+    subscribed = safely { @conn.lsub('', '*') }
 
     @mutex.synchronize do
       # Remove cached mailboxes that no longer exist.
-      @mailboxes.delete_if {|k, v| !list.any?{|mb| mb.name == k}}
+      @mailboxes.delete_if {|k, v| !all.any?{|mb| mb.name == k}}
 
       # Update cached mailboxes.
-      list.each do |mb|
-        @mailboxes[mb.name] ||= Mailbox.new(self, mb.name, mb.delim, mb.attr)
+      all.each do |mb|
+        @mailboxes[mb.name] ||= Mailbox.new(self, mb.name, mb.delim,
+            subscribed.any?{|s| s.name == mb.name}, mb.attr)
       end
     end
   end

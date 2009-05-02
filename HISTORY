@@ -5,7 +5,10 @@ Version 1.0.1 (?)
   * Ruby 1.9.1 support.
   * Much more robust handling of unexpected server disconnects and dropped
     connections.
-  * Option to verify server SSL certificates.
+  * Add --all option to copy all folders recursively.
+  * Add --dry-run option to simulate changes without actually making them.
+  * Add --ssl-certs option to specify a bundle of trusted SSL certificates.
+  * Add --ssl-verify option to verify server SSL certificates.
   * Fix excessive post-scan processing times for very large mailboxes.
   * Fetch message headers in blocks of up to 1024 at a time rather than all at
     once, to prevent potential problems with certain servers when a mailbox
@@ -14,7 +17,6 @@ Version 1.0.1 (?)
     them, and don't die if the platform sniffing doesn't save us.
   * Add a new "insane" logging level, which will output all IMAP commands and
     responses to STDERR.
-  * Add a --dry-run option to simulate changes without actually making them.
 
 Version 1.0.0 (2009-03-17)
   * First release.

@@ -13,13 +13,14 @@ class Mailbox
   # Minimum time (in seconds) allowed between mailbox scans.
   SCAN_INTERVAL = 60
 
-  def initialize(imap, name, delim, *attr)
+  def initialize(imap, name, delim, subscribed, *attr)
     raise ArgumentError, "must provide a Larch::IMAP instance" unless imap.is_a?(Larch::IMAP)
 
-    @delim = delim
-    @imap  = imap
-    @name  = name
-    @attr  = attr
+    @imap       = imap
+    @name       = name
+    @delim      = delim
+    @subscribed = subscribed
+    @attr       = attr
 
     @ids       = {}
     @last_id   = 0
@@ -159,6 +160,25 @@ class Mailbox
 
       @mutex.synchronize { @ids[id] = uid }
     end
+  end
+
+  # Subscribes to this mailbox.
+  def subscribe(force = false)
+    return if subscribed? && !force
+    @imap.safely { @imap.conn.subscribe(@name) }
+    @mutex.synchronize { @subscribed = true }
+  end
+
+  # Returns +true+ if this mailbox is subscribed, +false+ otherwise.
+  def subscribed?
+    @subscribed
+  end
+
+  # Unsubscribes to this mailbox.
+  def unsubscribe(force = false)
+    return unless subscribed? || force
+    @imap.safely { @imap.conn.unsubscribe(@name) }
+    @mutex.synchronize { @subscribed = false }
   end
 
   private

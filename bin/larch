@@ -23,6 +23,7 @@ EOS
     opt :to,   "URI of the destination IMAP server.", :short => '-t', :type => :string, :required => true
 
     text "\nCopy Options:"
+    opt :all,              "Copy all folders recursively", :short => :none
     opt :from_folder,      "Source folder to copy from", :short => :none, :default => 'INBOX'
     opt :from_pass,        "Source server password (default: prompt)", :short => :none, :type => :string
     opt :from_user,        "Source server username (default: prompt)", :short => :none, :type => :string
@@ -47,6 +48,10 @@ EOS
     end
   end
 
+  if options[:all_given] && (options[:from_folder_given] || options[:to_folder_given])
+    Trollop.die :all, "may not be used with --from-folder or --to-folder"
+  end
+
   unless Logger::LEVELS.has_key?(options[:verbosity].to_sym)
     Trollop.die :verbosity, "must be one of: #{Logger::LEVELS.keys.join(', ')}"
   end
@@ -55,6 +60,13 @@ EOS
   uri_from = URI(options[:from])
   uri_to   = URI(options[:to])
 
+  # --all option overrides folders specified in URIs
+  if options[:all_given]
+    uri_from.path = ''
+    uri_to.path   = ''
+  end
+
+  # --from-folder and --to-folder options override folders specified in URIs
   if options[:from_folder_given] || options[:to_folder_given]
     uri_from.path = '/' + CGI.escape(options[:from_folder].gsub(/^\//, ''))
     uri_to.path   = '/' + CGI.escape(options[:to_folder].gsub(/^\//, ''))
@@ -103,5 +115,9 @@ EOS
     end
   end
 
-  copy_folder(imap_from, imap_to)
+  if options[:all_given]
+    copy_all(imap_from, imap_to)
+  else
+    copy_folder(imap_from, imap_to)
+  end
 end
