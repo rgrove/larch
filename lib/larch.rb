@@ -28,6 +28,8 @@ module Larch
       @total  = 0
     end
 
+    # Copies the messages in a single IMAP folder (non-recursively) from the
+    # source to the destination.
     def copy_folder(imap_from, imap_to)
       raise ArgumentError, "source must be a Larch::IMAP instance" unless imap_from.is_a?(IMAP)
       raise ArgumentError, "dest must be a Larch::IMAP instance" unless imap_to.is_a?(IMAP)

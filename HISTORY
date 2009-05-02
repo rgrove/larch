@@ -14,6 +14,7 @@ Version 1.0.1 (?)
     them, and don't die if the platform sniffing doesn't save us.
   * Add a new "insane" logging level, which will output all IMAP commands and
     responses to STDERR.
+  * Add a --dry-run option to simulate changes without actually making them.
 
 Version 1.0.0 (2009-03-17)
   * First release.

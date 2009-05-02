@@ -24,6 +24,12 @@ class IMAP
   #   If +true+, mailboxes that don't already exist will be created if
   #   necessary.
   #
+  # [:dry_run]
+  #   If +true+, read-only operations will be performed as usual and all change
+  #   operations will be simulated, but no changes will actually be made. Note
+  #   that it's not actually possible to simulation mailbox creation, so
+  #   +:dry_run+ mode always behaves as if +:create_mailbox+ is +false+.
+  #
   # [:fast_scan]
   #   If +true+, a faster but less accurate method will be used to scan
   #   mailboxes. This will speed up the initial mailbox scan, but will also
@@ -125,7 +131,7 @@ class IMAP
       raise unless @options[:create_mailbox] && retries == 0
 
       info "creating mailbox: #{name}"
-      safely { @conn.create(name) }
+      safely { @conn.create(name) } unless @options[:dry_run]
 
       retries += 1
       retry

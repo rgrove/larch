@@ -54,7 +54,7 @@ class Mailbox
       imap_select(!!@imap.options[:create_mailbox])
 
       debug "appending message: #{message.id}"
-      @imap.conn.append(@name, message.rfc822, message.flags, message.internaldate)
+      @imap.conn.append(@name, message.rfc822, message.flags, message.internaldate) unless @imap.options[:dry_run]
     end
 
     true
@@ -240,10 +240,10 @@ class Mailbox
       rescue Net::IMAP::NoResponseError => e
         raise Error, "unable to select mailbox: #{e.message}" unless create
 
-        info "creating mailbox: #{mailbox}"
+        info "creating mailbox: #{@name}"
 
         begin
-          @imap.conn.create(@name)
+          @imap.conn.create(@name) unless @imap.options[:dry_run]
           retry
         rescue => e
           raise Error, "unable to create mailbox: #{e.message}"
