@@ -27,7 +27,7 @@ class IMAP
   # [:dry_run]
   #   If +true+, read-only operations will be performed as usual and all change
   #   operations will be simulated, but no changes will actually be made. Note
-  #   that it's not actually possible to simulation mailbox creation, so
+  #   that it's not actually possible to simulate mailbox creation, so
   #   +:dry_run+ mode always behaves as if +:create_mailbox+ is +false+.
   #
   # [:fast_scan]
