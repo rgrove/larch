@@ -312,8 +312,8 @@ class IMAP
   end
 
   def update_mailboxes
-    all        = safely { @conn.list('', '*') }
-    subscribed = safely { @conn.lsub('', '*') }
+    all        = safely { @conn.list('', '*') } || []
+    subscribed = safely { @conn.lsub('', '*') } || []
 
     @mutex.synchronize do
       # Remove cached mailboxes that no longer exist.
