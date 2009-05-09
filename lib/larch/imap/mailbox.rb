@@ -20,7 +20,7 @@ class Mailbox
     @name       = name
     @delim      = delim
     @subscribed = subscribed
-    @attr       = attr
+    @attr       = *attr
 
     @ids       = {}
     @last_id   = 0
@@ -52,7 +52,9 @@ class Mailbox
     return false if has_message?(message)
 
     @imap.safely do
-      imap_select(!!@imap.options[:create_mailbox])
+      unless imap_select(!!@imap.options[:create_mailbox])
+        raise Larch::IMAP::Error, "mailbox cannot contain messages: #{@name}"
+      end
 
       debug "appending message: #{message.id}"
       @imap.conn.append(@name, message.rfc822, message.flags, message.internaldate) unless @imap.options[:dry_run]
@@ -121,7 +123,7 @@ class Mailbox
     return if @last_scan && (Time.now - @last_scan) < SCAN_INTERVAL
 
     begin
-      imap_examine
+      return unless imap_examine
     rescue Error => e
       return if @imap.options[:create_mailbox]
       raise
@@ -174,7 +176,7 @@ class Mailbox
     @subscribed
   end
 
-  # Unsubscribes to this mailbox.
+  # Unsubscribes from this mailbox.
   def unsubscribe(force = false)
     return unless subscribed? || force
     @imap.safely { @imap.conn.unsubscribe(@name) } unless @imap.options[:dry_run]
@@ -206,7 +208,8 @@ class Mailbox
   # if it is already selected (which isn't necessary unless you want to ensure
   # that it's in a read-only state).
   def imap_examine(force = false)
-    return if @state == :examined || (!force && @state == :selected)
+    return false if @attr.include?(:Noselect)
+    return true if @state == :examined || (!force && @state == :selected)
 
     @imap.safely do
       begin
@@ -221,6 +224,8 @@ class Mailbox
         raise Error, "unable to examine mailbox: #{e.message}"
       end
     end
+
+    return true
   end
 
   # Fetches the specified _fields_ for the specified message sequence id(s) from
@@ -246,7 +251,8 @@ class Mailbox
   # exist and _create_ is +true+, it will be created. Otherwise, a
   # Larch::IMAP::Error will be raised.
   def imap_select(create = false)
-    return if @state == :selected
+    return false if @attr.include?(:Noselect)
+    return true if @state == :selected
 
     @imap.safely do
       begin
@@ -270,6 +276,8 @@ class Mailbox
         end
       end
     end
+
+    return true
   end
 
   # Fetches the specified _fields_ for the specified UID(s) from the IMAP
