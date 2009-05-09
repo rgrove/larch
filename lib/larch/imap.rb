@@ -86,6 +86,11 @@ class IMAP
     safely {} # connect, but do nothing else
   end
 
+  # Gets the server's mailbox hierarchy delimiter.
+  def delim
+    @delim ||= safely { @conn.list('', '')[0].delim }
+  end
+
   # Closes the IMAP connection if one is currently open.
   def disconnect
     return unless @conn
@@ -117,8 +122,10 @@ class IMAP
   # the mailbox doesn't exist and the +:create_mailbox+ option is +false+, or if
   # +:create_mailbox+ is +true+ and mailbox creation fails, a
   # Larch::IMAP::MailboxNotFoundError will be raised.
-  def mailbox(name)
+  def mailbox(name, delim = '/')
     retries = 0
+
+    name = name.gsub(delim, self.delim)
 
     begin
       @mailboxes.fetch(name) do

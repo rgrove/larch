@@ -1,11 +1,10 @@
-# Append this file's directory to the include path if it's not there already.
+# Prepend this file's directory to the include path if it's not there already.
 $:.unshift(File.dirname(File.expand_path(__FILE__)))
 $:.uniq!
 
 require 'cgi'
 require 'digest/md5'
 require 'net/imap'
-require 'monitor'
 require 'time'
 require 'uri'
 
@@ -39,7 +38,7 @@ module Larch
         @failed = 0
         @total  = 0
 
-        mailbox_to = imap_to.mailbox(mailbox_from.name)
+        mailbox_to = imap_to.mailbox(mailbox_from.name, mailbox_from.delim)
         copy_messages(imap_from, mailbox_from, imap_to, mailbox_to)
         mailbox_to.subscribe if mailbox_from.subscribed?
 
