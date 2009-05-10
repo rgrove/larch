@@ -48,23 +48,23 @@ module Larch
       raise ArgumentError, "imap_from must be a Larch::IMAP instance" unless imap_from.is_a?(IMAP)
       raise ArgumentError, "imap_to must be a Larch::IMAP instance" unless imap_to.is_a?(IMAP)
 
+      @copied = 0
+      @failed = 0
+      @total  = 0
+
       imap_from.each_mailbox do |mailbox_from|
         next if subscribed_only && !mailbox_from.subscribed?
-
-        @copied = 0
-        @failed = 0
-        @total  = 0
 
         mailbox_to = imap_to.mailbox(mailbox_from.name, mailbox_from.delim)
         mailbox_to.subscribe if mailbox_from.subscribed?
 
         copy_messages(imap_from, mailbox_from, imap_to, mailbox_to)
-
-        summary
       end
 
     rescue => e
       @log.fatal e.message
+
+    ensure
       summary
     end
 
