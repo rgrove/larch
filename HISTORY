@@ -6,6 +6,7 @@ Version 1.0.1 (?)
   * Much more robust handling of unexpected server disconnects and dropped
     connections.
   * Added --all option to copy all folders recursively.
+  * Added --all-subscribed option to copy all subscribed folders recursively.
   * Added --dry-run option to simulate changes without actually making them.
   * Added --ssl-certs option to specify a bundle of trusted SSL certificates.
   * Added --ssl-verify option to verify server SSL certificates.

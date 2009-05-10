@@ -24,6 +24,9 @@ EOS
 
     text "\nCopy Options:"
     opt :all,              "Copy all folders recursively", :short => :none
+    opt :all_subscribed,   "Copy all subscribed folders recursively", :short => :none
+
+    text ''
     opt :from_folder,      "Source folder to copy from", :short => :none, :default => 'INBOX'
     opt :from_pass,        "Source server password (default: prompt)", :short => :none, :type => :string
     opt :from_user,        "Source server username (default: prompt)", :short => :none, :type => :string
@@ -48,20 +51,29 @@ EOS
     end
   end
 
-  if options[:all_given] && (options[:from_folder_given] || options[:to_folder_given])
-    Trollop.die :all, "may not be used with --from-folder or --to-folder"
-  end
-
   unless Logger::LEVELS.has_key?(options[:verbosity].to_sym)
     Trollop.die :verbosity, "must be one of: #{Logger::LEVELS.keys.join(', ')}"
+  end
+
+  # Prevent conflicting options from being used.
+  if options[:all_given]
+    [:all_subscribed, :from_folder, :to_folder].each do |o|
+      Trollop.die :all, "may not be used with --#{o.to_s.gsub('_', '-')}" if options["#{o}_given".to_sym]
+    end
+  end
+
+  if options[:all_subscribed_given]
+    [:all, :from_folder, :to_folder].each do |o|
+      Trollop.die :all_subscribed, "may not be used with --#{o.to_s.gsub('_', '-')}" if options["#{o}_given".to_sym]
+    end
   end
 
   # Create URIs.
   uri_from = URI(options[:from])
   uri_to   = URI(options[:to])
 
-  # --all option overrides folders specified in URIs
-  if options[:all_given]
+  # --all and --all-subscribed options override folders specified in URIs
+  if options[:all_given] || options[:all_subscribed_given]
     uri_from.path = ''
     uri_to.path   = ''
   end
@@ -117,6 +129,8 @@ EOS
 
   if options[:all_given]
     copy_all(imap_from, imap_to)
+  elsif options[:all_subscribed_given]
+    copy_all(imap_from, imap_to, true)
   else
     copy_folder(imap_from, imap_to)
   end
