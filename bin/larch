@@ -25,8 +25,8 @@ EOS
     text "\nCopy Options:"
     opt :all,              "Copy all folders recursively", :short => :none
     opt :all_subscribed,   "Copy all subscribed folders recursively", :short => :none
-
-    text ''
+    opt :exclude,          "List of mailbox names/patterns that shouldn't be copied", :short => :none, :type => :strings, :multi => true
+    opt :exclude_file,     "Filename containing mailbox names/patterns that shouldn't be copied", :short => :none, :type => :string
     opt :from_folder,      "Source folder to copy from", :short => :none, :default => 'INBOX'
     opt :from_pass,        "Source server password (default: prompt)", :short => :none, :type => :string
     opt :from_user,        "Source server username (default: prompt)", :short => :none, :type => :string
@@ -53,6 +53,13 @@ EOS
 
   unless Logger::LEVELS.has_key?(options[:verbosity].to_sym)
     Trollop.die :verbosity, "must be one of: #{Logger::LEVELS.keys.join(', ')}"
+  end
+
+  if options[:exclude_file_given]
+    filename = options[:exclude_file]
+
+    Trollop.die :exclude_file, ": file not found: #{filename}" unless File.file?(filename)
+    Trollop.die :exclude_file, ": file cannot be read: #{filename}" unless File.readable?(filename)
   end
 
   # Prevent conflicting options from being used.
@@ -97,7 +104,11 @@ EOS
   uri_to.password   ||= CGI.escape(ask("Destination password (#{uri_to.host}): ") {|q| q.echo = false })
 
   # Go go go!
-  init(options[:verbosity])
+  init(
+    options[:verbosity],
+    options[:exclude] ? options[:exclude].flatten : [],
+    options[:exclude_file]
+  )
 
   Net::IMAP.debug = true if @log.level == :insane
 

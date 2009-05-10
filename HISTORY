@@ -8,6 +8,8 @@ Version 1.0.1 (?)
   * Added --all option to copy all folders recursively.
   * Added --all-subscribed option to copy all subscribed folders recursively.
   * Added --dry-run option to simulate changes without actually making them.
+  * Added --exclude and --exclude-file options to specify folders that should
+    not be copied.
   * Added --ssl-certs option to specify a bundle of trusted SSL certificates.
   * Added --ssl-verify option to verify server SSL certificates.
   * Added a new "insane" logging level, which will output all IMAP commands and

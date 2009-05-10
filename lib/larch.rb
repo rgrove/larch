@@ -17,11 +17,26 @@ require 'larch/version'
 module Larch
 
   class << self
-    attr_reader :log
+    attr_reader :log, :exclude
 
-    def init(log_level = :info)
+    EXCLUDE_COMMENT = /#.*$/
+    EXCLUDE_REGEX   = /^\s*\/(.*)\/\s*/
+    GLOB_PATTERNS   = {'*' => '.*', '?' => '.'}
+
+    def init(log_level = :info, exclude = [], exclude_file = nil)
       @log = Logger.new(log_level)
 
+      @exclude = exclude.map do |e|
+        if e =~ EXCLUDE_REGEX
+          Regexp.new($1, Regexp::IGNORECASE)
+        else
+          glob_to_regex(e.strip)
+        end
+      end
+
+      load_exclude_file(exclude_file) if exclude_file
+
+      # Stats
       @copied = 0
       @failed = 0
       @total  = 0
@@ -88,6 +103,8 @@ module Larch
       raise ArgumentError, "imap_to must be a Larch::IMAP instance" unless imap_to.is_a?(IMAP)
       raise ArgumentError, "mailbox_to must be a Larch::IMAP::Mailbox instance" unless mailbox_to.is_a?(IMAP::Mailbox)
 
+      return if excluded?(mailbox_from.name) || excluded?(mailbox_to.name)
+
       @log.info "copying messages from #{imap_from.host}/#{mailbox_from.name} to #{imap_to.host}/#{mailbox_to.name}"
 
       imap_from.connect
@@ -121,6 +138,49 @@ module Larch
         end
       end
     end
+
+    def excluded?(name)
+      name = name.downcase
+
+      @exclude.each do |e|
+        return true if (e.is_a?(Regexp) ? !!(name =~ e) : File.fnmatch?(e, name))
+      end
+
+      return false
+    end
+
+    def glob_to_regex(str)
+      str.gsub!(/(.)/) {|c| GLOB_PATTERNS[$1] || Regexp.escape(c) }
+      Regexp.new("^#{str}$", Regexp::IGNORECASE)
+    end
+
+    def load_exclude_file(filename)
+      @exclude ||= []
+      lineno = 0
+
+      File.open(filename, 'rb') do |f|
+        f.each do |line|
+          lineno += 1
+
+          # Strip comments.
+          line.sub!(EXCLUDE_COMMENT, '')
+          line.strip!
+
+          # Skip empty lines.
+          next if line.empty?
+
+          if line =~ EXCLUDE_REGEX
+            @exclude << Regexp.new($1, Regexp::IGNORECASE)
+          else
+            @exclude << glob_to_regex(line)
+          end
+        end
+      end
+
+    rescue => e
+      raise Larch::IMAP::FatalError, "error in exclude file at line #{lineno}: #{e}"
+    end
+
   end
 
 end
