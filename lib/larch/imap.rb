@@ -119,9 +119,9 @@ class IMAP
   end
 
   # Gets a Larch::IMAP::Mailbox instance representing the specified mailbox. If
-  # the mailbox doesn't exist and the +:create_mailbox+ option is +false+, or if
-  # +:create_mailbox+ is +true+ and mailbox creation fails, a
-  # Larch::IMAP::MailboxNotFoundError will be raised.
+  # the mailbox doesn't exist and the <tt>:create_mailbox</tt> option is
+  # +false+, or if <tt>:create_mailbox</tt> is +true+ and mailbox creation
+  # fails, a Larch::IMAP::MailboxNotFoundError will be raised.
   def mailbox(name, delim = '/')
     retries = 0
 
@@ -160,8 +160,8 @@ class IMAP
     @uri.port || (ssl? ? 993 : 143)
   end
 
-  # Connect if necessary, execute the given block, retry up to 3 times if a
-  # recoverable error occurs, die if an unrecoverable error occurs.
+  # Connect if necessary, execute the given block, retry if a recoverable error
+  # occurs, die if an unrecoverable error occurs.
   def safely
     safe_connect
 
