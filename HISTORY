@@ -1,7 +1,7 @@
 Larch History
 ================================================================================
 
-Version 1.0.1 (?)
+Version 1.0.1 (2009-05-10)
   * Ruby 1.9.1 support.
   * Much more robust handling of unexpected server disconnects and dropped
     connections.
