@@ -53,6 +53,7 @@ module Larch
       @total  = 0
 
       imap_from.each_mailbox do |mailbox_from|
+        next if excluded?(mailbox_from.name)
         next if subscribed_only && !mailbox_from.subscribed?
 
         mailbox_to = imap_to.mailbox(mailbox_from.name, mailbox_from.delim)
@@ -78,8 +79,13 @@ module Larch
       @failed = 0
       @total  = 0
 
-      copy_messages(imap_from, imap_from.mailbox(imap_from.uri_mailbox || 'INBOX'),
-          imap_to, imap_to.mailbox(imap_to.uri_mailbox || 'INBOX'))
+      from_name = imap_from.uri_mailbox || 'INBOX'
+      to_name   = imap_to.uri_mailbox || 'INBOX'
+
+      return if excluded?(from_name) || excluded?(to_name)
+
+      copy_messages(imap_from, imap_from.mailbox(from_name), imap_to,
+          imap_to.mailbox(to_name))
 
       imap_from.disconnect
       imap_to.disconnect
