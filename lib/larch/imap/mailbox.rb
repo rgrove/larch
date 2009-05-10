@@ -17,7 +17,7 @@ class Mailbox
     @name       = name
     @delim      = delim
     @subscribed = subscribed
-    @attr       = *attr.flatten # flatten is necessary for Ruby 1.9
+    @attr       = attr.flatten
 
     @ids       = {}
     @last_id   = 0
