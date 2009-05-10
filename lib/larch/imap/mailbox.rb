@@ -4,9 +4,6 @@ module Larch; class IMAP
 class Mailbox
   attr_reader :attr, :delim, :imap, :name, :state
 
-  # Maximum number of messages to fetch at once.
-  MAX_FETCH_COUNT = 1024
-
   # Regex to capture a Message-Id header.
   REGEX_MESSAGE_ID = /message-id\s*:\s*(\S+)/i
 
@@ -130,12 +127,10 @@ class Mailbox
     end
 
     last_id = @imap.safely { @imap.conn.responses['EXISTS'].last }
-
     @mutex.synchronize { @last_scan = Time.now }
     return if last_id == @last_id
 
     range = (@last_id + 1)..last_id
-
     @mutex.synchronize { @last_id = last_id }
 
     info "fetching message headers #{range}" <<
@@ -147,7 +142,7 @@ class Mailbox
       "(UID BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)] RFC822.SIZE INTERNALDATE)"
     end
 
-    imap_fetch(range, fields).each do |data|
+    imap_fetch(range.begin..-1, fields).each do |data|
       id = create_id(data)
 
       unless uid = data.attr['UID']
@@ -228,23 +223,13 @@ class Mailbox
     return true
   end
 
-  # Fetches the specified _fields_ for the specified message sequence id(s) from
-  # this mailbox.
-  def imap_fetch(ids, fields)
-    ids  = ids.to_a
-    data = []
-    pos  = 0
-
-    while pos < ids.length
-      @imap.safely do
-        imap_examine
-
-        data += @imap.conn.fetch(ids[pos, MAX_FETCH_COUNT], fields)
-        pos  += MAX_FETCH_COUNT
-      end
+  # Fetches the specified _fields_ for the specified _set_ of message sequence
+  # ids (either a Range or an Array of ids).
+  def imap_fetch(set, fields)
+    @imap.safely do
+      imap_examine
+      @imap.conn.fetch(set, fields)
     end
-
-    data
   end
 
   # Selects the mailbox if it is not already selected. If the mailbox does not
@@ -280,23 +265,13 @@ class Mailbox
     return true
   end
 
-  # Fetches the specified _fields_ for the specified UID(s) from the IMAP
-  # server.
-  def imap_uid_fetch(uids, fields)
-    uids = uids.to_a
-    data = []
-    pos  = 0
-
-    while pos < uids.length
-      @imap.safely do
-        imap_examine
-
-        data += @imap.conn.uid_fetch(uids[pos, MAX_FETCH_COUNT], fields)
-        pos  += MAX_FETCH_COUNT
-      end
+  # Fetches the specified _fields_ for the specified _set_ of UIDs (either a
+  # Range or an Array of UIDs).
+  def imap_uid_fetch(set, fields)
+    @imap.safely do
+      imap_examine
+      @imap.conn.uid_fetch(set, fields)
     end
-
-    data
   end
 
 end

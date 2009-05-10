@@ -15,9 +15,7 @@ Version 1.0.1 (?)
   * Added a new "insane" logging level, which will output all IMAP commands and
     responses to STDERR.
   * Fixed excessive post-scan processing times for very large mailboxes.
-  * Message headers are now fetched in blocks of up to 1024 at a time rather
-    than all at once to prevent potential problems with certain servers when a
-    mailbox contains a huge number of messages.
+  * Fixed potential scan problems with very large mailboxes on certain servers.
   * POSIX signals are no longer trapped on platforms that aren't likely to
     support them.
 
