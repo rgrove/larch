@@ -8,7 +8,7 @@ Larch is particularly well-suited for copying email to, from, or between Gmail
 accounts.
 
 *Author*::    Ryan Grove (mailto:ryan@wonko.com)
-*Version*::   1.0.1 (2009-05-10)
+*Version*::   1.0.2 (2009-08-05)
 *Copyright*:: Copyright (c) 2009 Ryan Grove. All rights reserved.
 *License*::   GPL 2.0 (http://opensource.org/licenses/gpl-2.0.php)
 *Website*::   http://github.com/rgrove/larch
@@ -128,6 +128,12 @@ servers:
 * Dovecot
 * Gmail
 * Microsoft Exchange 2003
+
+The following servers do not work well with Larch:
+
+* BlitzMail - Buggy server implementation; fails to properly quote or escape
+  some IMAP responses, which can cause Larch to hang waiting for a terminating
+  character that will never arrive.
 
 == Known Issues
 
