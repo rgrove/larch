@@ -54,7 +54,13 @@ class Mailbox
       end
 
       debug "appending message: #{message.id}"
-      @imap.conn.append(@name, message.rfc822, message.flags, message.internaldate) unless @imap.options[:dry_run]
+
+      # The \Recent flag is read-only, so we shouldn't try to set it at the
+      # destination.
+      flags = message.flags.dup
+      flags.delete(:Recent)
+
+      @imap.conn.append(@name, message.rfc822, flags, message.internaldate) unless @imap.options[:dry_run]
     end
 
     true

@@ -1,6 +1,10 @@
 Larch History
 ================================================================================
 
+Version 1.0.2 (2009-08-05)
+  * Fixed a bug that caused Larch to try to set the read-only \Recent flag on
+    the destination server.
+
 Version 1.0.1 (2009-05-10)
   * Ruby 1.9.1 support.
   * Much more robust handling of unexpected server disconnects and dropped
