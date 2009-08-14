@@ -18,7 +18,7 @@ class IMAP
   # Initializes a new Larch::IMAP instance that will connect to the specified
   # IMAP URI.
   #
-  # In addition to the URI, the following options may also be specified:
+  # In addition to the URI, the following options may be specified:
   #
   # [:create_mailbox]
   #   If +true+, mailboxes that don't already exist will be created if
@@ -170,7 +170,8 @@ class IMAP
     begin
       yield
 
-    rescue Errno::ECONNRESET,
+    rescue Errno::ECONNABORTED,
+           Errno::ECONNRESET,
            Errno::ENOTCONN,
            Errno::EPIPE,
            Errno::ETIMEDOUT,
