@@ -15,6 +15,7 @@ class Mailbox
 
     @imap       = imap
     @name       = name
+    @name_utf7  = Net::IMAP.encode_utf7(@name)
     @delim      = delim
     @subscribed = subscribed
     @attr       = attr.flatten
@@ -60,7 +61,7 @@ class Mailbox
       flags = message.flags.dup
       flags.delete(:Recent)
 
-      @imap.conn.append(@name, message.rfc822, flags, message.internaldate) unless @imap.options[:dry_run]
+      @imap.conn.append(@name_utf7, message.rfc822, flags, message.internaldate) unless @imap.options[:dry_run]
     end
 
     true
@@ -168,7 +169,7 @@ class Mailbox
   # Subscribes to this mailbox.
   def subscribe(force = false)
     return if subscribed? && !force
-    @imap.safely { @imap.conn.subscribe(@name) } unless @imap.options[:dry_run]
+    @imap.safely { @imap.conn.subscribe(@name_utf7) } unless @imap.options[:dry_run]
     @mutex.synchronize { @subscribed = true }
   end
 
@@ -180,7 +181,7 @@ class Mailbox
   # Unsubscribes from this mailbox.
   def unsubscribe(force = false)
     return unless subscribed? || force
-    @imap.safely { @imap.conn.unsubscribe(@name) } unless @imap.options[:dry_run]
+    @imap.safely { @imap.conn.unsubscribe(@name_utf7) } unless @imap.options[:dry_run]
     @mutex.synchronize { @subscribed = false }
   end
 
@@ -217,7 +218,7 @@ class Mailbox
         @mutex.synchronize { @state = :closed }
 
         debug "examining mailbox"
-        @imap.conn.examine(@name)
+        @imap.conn.examine(@name_utf7)
 
         @mutex.synchronize { @state = :examined }
 
@@ -250,7 +251,7 @@ class Mailbox
         @mutex.synchronize { @state = :closed }
 
         debug "selecting mailbox"
-        @imap.conn.select(@name)
+        @imap.conn.select(@name_utf7)
 
         @mutex.synchronize { @state = :selected }
 
@@ -260,7 +261,7 @@ class Mailbox
         info "creating mailbox: #{@name}"
 
         begin
-          @imap.conn.create(@name) unless @imap.options[:dry_run]
+          @imap.conn.create(@name_utf7) unless @imap.options[:dry_run]
           retry
         rescue => e
           raise Error, "unable to create mailbox: #{e.message}"
