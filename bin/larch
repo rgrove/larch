@@ -22,7 +22,7 @@ EOS
     opt :from, "URI of the source IMAP server.", :short => '-f', :type => :string, :required => true
     opt :to,   "URI of the destination IMAP server.", :short => '-t', :type => :string, :required => true
 
-    text "\nCopy Options:"
+    text "\nSync Options:"
     opt :all,              "Copy all folders recursively", :short => :none
     opt :all_subscribed,   "Copy all subscribed folders recursively", :short => :none
     opt :exclude,          "List of mailbox names/patterns that shouldn't be copied", :short => :none, :type => :strings, :multi => true
@@ -35,7 +35,8 @@ EOS
     opt :to_user,          "Destination server username (default: prompt)", :short => :none, :type => :string
 
     text "\nGeneral Options:"
-    opt :dry_run,          "Don't actually make any changes.", :short => '-n'
+    opt :database,         "Specify a non-default message database to use", :short => :none, :default => File.join('~', '.larch.db')
+    opt :dry_run,          "Don't actually make any changes", :short => '-n'
     opt :fast_scan,        "Use a faster (but less accurate) method to scan mailboxes. This may result in messages being re-copied.", :short => :none
     opt :max_retries,      "Maximum number of times to retry after a recoverable error", :short => :none, :default => 3
     opt :no_create_folder, "Don't create destination folders that don't already exist", :short => :none
@@ -104,10 +105,10 @@ EOS
   uri_to.password   ||= CGI.escape(ask("Destination password (#{uri_to.host}): ") {|q| q.echo = false })
 
   # Go go go!
-  init(
-    options[:verbosity],
-    options[:exclude] ? options[:exclude].flatten : [],
-    options[:exclude_file]
+  init(options[:database],
+    :exclude      => options[:exclude] ? options[:exclude].flatten : [],
+    :exclude_file => options[:exclude_file],
+    :log_level    => options[:verbosity]
   )
 
   Net::IMAP.debug = true if @log.level == :insane

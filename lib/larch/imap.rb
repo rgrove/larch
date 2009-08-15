@@ -6,14 +6,14 @@ module Larch
 # required reading if you're doing anything with IMAP in Ruby:
 # http://sup.rubyforge.org
 class IMAP
-  attr_reader :conn, :options
+  attr_reader :conn, :db_account, :options
 
   # URI format validation regex.
   REGEX_URI = URI.regexp(['imap', 'imaps'])
 
   # Larch::IMAP::Message represents a transferable IMAP message which can be
   # passed between Larch::IMAP instances.
-  Message = Struct.new(:id, :envelope, :rfc822, :flags, :internaldate)
+  Message = Struct.new(:guid, :envelope, :rfc822, :flags, :internaldate)
 
   # Initializes a new Larch::IMAP instance that will connect to the specified
   # IMAP URI.
@@ -62,9 +62,14 @@ class IMAP
 
     raise ArgumentError, "must provide a username and password" unless @uri.user && @uri.password
 
-    @conn      = nil
-    @mailboxes = {}
-    @mutex     = Mutex.new
+    @conn       = nil
+    @mailboxes  = {}
+    @mutex      = Mutex.new
+
+    @db_account = Database::Account.find_or_create(
+      :hostname => host,
+      :username => username
+    )
 
     # Create private convenience methods (debug, info, warn, etc.) to make
     # logging easier.
@@ -332,6 +337,11 @@ class IMAP
         @mailboxes[mb.name] ||= Mailbox.new(self, mb.name, mb.delim,
             subscribed.any?{|s| s.name == mb.name}, mb.attr)
       end
+    end
+
+    # Remove mailboxes that no longer exist from the database.
+    @db_account.mailboxes.each do |db_mailbox|
+      db_mailbox.destroy unless @mailboxes.has_key?(db_mailbox.name)
     end
   end
 

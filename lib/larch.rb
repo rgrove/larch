@@ -8,6 +8,9 @@ require 'net/imap'
 require 'time'
 require 'uri'
 
+require 'sequel'
+require 'sequel/extensions/migration'
+
 require 'larch/errors'
 require 'larch/imap'
 require 'larch/imap/mailbox'
@@ -17,16 +20,23 @@ require 'larch/version'
 module Larch
 
   class << self
-    attr_reader :log, :exclude
+    attr_reader :db, :log, :exclude
 
     EXCLUDE_COMMENT = /#.*$/
     EXCLUDE_REGEX   = /^\s*\/(.*)\/\s*/
     GLOB_PATTERNS   = {'*' => '.*', '?' => '.'}
+    LIB_DIR         = File.join(File.dirname(File.expand_path(__FILE__)), 'larch')
 
-    def init(log_level = :info, exclude = [], exclude_file = nil)
-      @log = Logger.new(log_level)
+    def init(database, config = {})
+      @config = {
+        :exclude   => [],
+        :log_level => :info
+      }.merge(config)
 
-      @exclude = exclude.map do |e|
+      @log = Logger.new(@config[:log_level])
+      @db  = open_db(database)
+
+      @exclude = @config[:exclude].map do |e|
         if e =~ EXCLUDE_REGEX
           Regexp.new($1, Regexp::IGNORECASE)
         else
@@ -34,7 +44,7 @@ module Larch
         end
       end
 
-      load_exclude_file(exclude_file) if exclude_file
+      load_exclude_file(@config[:exclude_file]) if @config[:exclude_file]
 
       # Stats
       @copied = 0
@@ -97,6 +107,43 @@ module Larch
       summary
     end
 
+    # Opens a connection to the Larch message database, creating it if
+    # necessary.
+    def open_db(database)
+      filename = File.expand_path(database)
+      exists   = File.exist?(filename)
+
+      begin
+        db = Sequel.connect("sqlite://#{filename}")
+        db.test_connection
+      rescue => e
+        @log.fatal "Unable to open message database: #{e}"
+        abort
+      end
+
+      # Ensure that the database schema is up to date.
+      migration_dir = File.join(LIB_DIR, 'db', 'migrate')
+
+      unless Sequel::Migrator.get_current_migration_version(db) ==
+          Sequel::Migrator.latest_migration_version(migration_dir)
+        begin
+          Sequel::Migrator.apply(db, migration_dir)
+        rescue => e
+          @log.fatal "Unable to migrate message database: #{e}"
+          abort
+        end
+      end
+
+      # chmod the db file if we just created it
+      File.chmod(0600, filename) unless exists
+
+      require 'larch/db/message'
+      require 'larch/db/mailbox'
+      require 'larch/db/account'
+
+      db
+    end
+
     def summary
       @log.info "#{@copied} message(s) copied, #{@failed} failed, #{@total - @copied - @failed} untouched out of #{@total} total"
     end
@@ -118,11 +165,11 @@ module Larch
 
       @total += mailbox_from.length
 
-      mailbox_from.each do |id|
-        next if mailbox_to.has_message?(id)
+      mailbox_from.each_guid do |guid|
+        next if mailbox_to.has_guid?(guid)
 
         begin
-          msg = mailbox_from.peek(id)
+          next unless msg = mailbox_from.peek(guid)
 
           if msg.envelope.from
             env_from = msg.envelope.from.first
