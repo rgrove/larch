@@ -151,7 +151,7 @@ class Mailbox
 
     # Compare the mailbox's current status with its last known status.
     begin
-      return unless status = imap_status('UIDNEXT', 'UIDVALIDITY')
+      return unless status = imap_status('MESSAGES', 'UIDNEXT', 'UIDVALIDITY')
     rescue Error => e
       return if @imap.options[:create_mailbox]
       raise
@@ -223,14 +223,20 @@ class Mailbox
     end
 
     if full_range && full_range.last - full_range.first > 0
-      info "fetching message headers..."
+      start    = @db_mailbox.messages_dataset.count + 1
+      total    = status['MESSAGES']
+      fetched  = 0
+      progress = 0
+
+      show_progress = total - start > FETCH_BLOCK_SIZE * 4
+
+      info "fetching message headers #{start} through #{total}..."
 
       begin
         last_good_uid = nil
 
         imap_uid_fetch(full_range, "(UID BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)] RFC822.SIZE INTERNALDATE FLAGS)") do |fetch_data|
           check_response_fields(fetch_data, 'UID', 'RFC822.SIZE', 'INTERNALDATE', 'FLAGS')
-          info "got #{fetch_data.length} headers"
 
           Larch.db.transaction do
             fetch_data.each do |data|
@@ -250,6 +256,14 @@ class Mailbox
             end
 
             @db_mailbox.update(:uidnext => last_good_uid + 1)
+          end
+
+          if show_progress
+            fetched       += fetch_data.length
+            last_progress  = progress
+            progress       = ((100 / (total - start).to_f) * fetched).round
+
+            info "#{progress}% complete" if progress > last_progress
           end
         end
 
