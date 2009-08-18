@@ -1,6 +1,14 @@
 Larch History
 ================================================================================
 
+Version 1.1.0 (git)
+  * Mailbox and message state information is now stored in a local SQLite
+    database, which allows Larch to resync and resume interrupted syncs much
+    more quickly without having to rescan all messages. As a result, SQLite 3 is
+    now a dependency.
+  * Progress information is now displayed regularly while scanning large
+    mailboxes.
+
 Version 1.0.2 (2009-08-05)
   * Fixed a bug that caused Larch to try to set the read-only \Recent flag on
     the destination server.
