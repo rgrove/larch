@@ -4,6 +4,7 @@ $:.uniq!
 
 require 'cgi'
 require 'digest/md5'
+require 'fileutils'
 require 'net/imap'
 require 'time'
 require 'uri'
@@ -110,14 +111,19 @@ module Larch
     # Opens a connection to the Larch message database, creating it if
     # necessary.
     def open_db(database)
-      filename = File.expand_path(database)
-      exists   = File.exist?(filename)
+      filename  = File.expand_path(database)
+      directory = File.dirname(filename)
+
+      unless File.exist?(directory)
+        FileUtils.mkdir_p(directory)
+        File.chmod(0700, directory)
+      end
 
       begin
         db = Sequel.connect("sqlite://#{filename}")
         db.test_connection
       rescue => e
-        @log.fatal "Unable to open message database: #{e}"
+        @log.fatal "unable to open message database: #{e}"
         abort
       end
 
@@ -129,13 +135,10 @@ module Larch
         begin
           Sequel::Migrator.apply(db, migration_dir)
         rescue => e
-          @log.fatal "Unable to migrate message database: #{e}"
+          @log.fatal "unable to migrate message database: #{e}"
           abort
         end
       end
-
-      # chmod the db file if we just created it
-      File.chmod(0600, filename) unless exists
 
       require 'larch/db/message'
       require 'larch/db/mailbox'
