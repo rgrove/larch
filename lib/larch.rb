@@ -70,7 +70,7 @@ module Larch
         mailbox_to = imap_to.mailbox(mailbox_from.name, mailbox_from.delim)
         mailbox_to.subscribe if mailbox_from.subscribed?
 
-        copy_messages(imap_from, mailbox_from, imap_to, mailbox_to)
+        copy_messages(imap_from, mailbox_from.name, imap_to, mailbox_to.name)
       end
 
     rescue => e
@@ -90,13 +90,12 @@ module Larch
       @failed = 0
       @total  = 0
 
-      from_name = imap_from.uri_mailbox || 'INBOX'
-      to_name   = imap_to.uri_mailbox || 'INBOX'
+      from_mb_name = imap_from.uri_mailbox || 'INBOX'
+      to_mb_name   = imap_to.uri_mailbox || 'INBOX'
 
-      return if excluded?(from_name) || excluded?(to_name)
+      return if excluded?(from_mb_name) || excluded?(to_mb_name)
 
-      copy_messages(imap_from, imap_from.mailbox(from_name), imap_to,
-          imap_to.mailbox(to_name))
+      copy_messages(imap_from, from_mb_name, imap_to, to_mb_name)
 
       imap_from.disconnect
       imap_to.disconnect
@@ -153,20 +152,19 @@ module Larch
 
     private
 
-    def copy_messages(imap_from, mailbox_from, imap_to, mailbox_to)
+    def copy_messages(imap_from, mb_name_from, imap_to, mb_name_to)
       raise ArgumentError, "imap_from must be a Larch::IMAP instance" unless imap_from.is_a?(IMAP)
-      raise ArgumentError, "mailbox_from must be a Larch::IMAP::Mailbox instance" unless mailbox_from.is_a?(IMAP::Mailbox)
       raise ArgumentError, "imap_to must be a Larch::IMAP instance" unless imap_to.is_a?(IMAP)
-      raise ArgumentError, "mailbox_to must be a Larch::IMAP::Mailbox instance" unless mailbox_to.is_a?(IMAP::Mailbox)
 
-      return if excluded?(mailbox_from.name) || excluded?(mailbox_to.name)
+      return if excluded?(mb_name_from) || excluded?(mb_name_to)
 
-      @log.info "copying messages from #{imap_from.host}/#{mailbox_from.name} to #{imap_to.host}/#{mailbox_to.name}"
+      @log.info "copying messages from #{imap_from.host}/#{mb_name_from} to #{imap_to.host}/#{mb_name_to}"
 
-      imap_from.connect
-      imap_to.connect
+      mailbox_from = imap_from.mailbox(mb_name_from)
 
       @total += mailbox_from.length
+
+      mailbox_to = imap_to.mailbox(mb_name_to)
 
       mailbox_from.each_guid do |guid|
         next if mailbox_to.has_guid?(guid)
@@ -187,7 +185,6 @@ module Larch
           @copied += 1
 
         rescue Larch::IMAP::Error => e
-          # TODO: Keep failed message envelopes in a buffer for later output?
           @failed += 1
           @log.error e.message
           next
