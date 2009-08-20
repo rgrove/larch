@@ -220,6 +220,9 @@ class Mailbox
           end
         end
       end
+
+      expected_uids = nil
+      fetch_data    = nil
     end
 
     if full_range && full_range.last - full_range.first > 0
@@ -242,16 +245,16 @@ class Mailbox
             fetch_data.each do |data|
               uid = data.attr['UID']
 
-              message_data = {
+              Database::Message.create(
+                :mailbox_id   => @db_mailbox.id,
                 :guid         => create_guid(data),
                 :uid          => uid,
                 :message_id   => parse_message_id(data.attr['BODY[HEADER.FIELDS (MESSAGE-ID)]']),
                 :rfc822_size  => data.attr['RFC822.SIZE'].to_i,
                 :internaldate => Time.parse(data.attr['INTERNALDATE']).to_i,
                 :flags        => data.attr['FLAGS'].map{|f| f.to_s }.join(',')
-              }
+              )
 
-              @db_mailbox.add_message(Database::Message.create(message_data))
               last_good_uid = uid
             end
 
