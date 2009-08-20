@@ -5,7 +5,7 @@ class Mailbox < Sequel::Model
   one_to_many :messages, :class => Larch::Database::Message
 
   before_destroy do
-    Message.filter(:mailbox_id => id).destroy
+    Larch::Database::Message.filter(:mailbox_id => id).destroy
   end
 end
 
