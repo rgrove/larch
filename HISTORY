@@ -6,6 +6,7 @@ Version 1.1.0 (git)
     database, which allows Larch to resync and resume interrupted syncs much
     more quickly without having to rescan all messages. As a result, SQLite 3 is
     now a dependency.
+  * Folders are now copied recursively by default.
   * Progress information is now displayed regularly while scanning large
     mailboxes.
 

@@ -70,7 +70,7 @@ module Larch
         mailbox_to = imap_to.mailbox(mailbox_from.name, mailbox_from.delim)
         mailbox_to.subscribe if mailbox_from.subscribed?
 
-        copy_messages(imap_from, mailbox_from.name, imap_to, mailbox_to.name)
+        copy_messages(mailbox_from, mailbox_to)
       end
 
     rescue => e
@@ -80,8 +80,8 @@ module Larch
       summary
     end
 
-    # Copies the messages in a single IMAP folder (non-recursively) from the
-    # source to the destination.
+    # Copies the messages in a single IMAP folder and all its subfolders
+    # (recursively) from the source to the destination.
     def copy_folder(imap_from, imap_to)
       raise ArgumentError, "imap_from must be a Larch::IMAP instance" unless imap_from.is_a?(IMAP)
       raise ArgumentError, "imap_to must be a Larch::IMAP instance" unless imap_to.is_a?(IMAP)
@@ -90,12 +90,10 @@ module Larch
       @failed = 0
       @total  = 0
 
-      from_mb_name = imap_from.uri_mailbox || 'INBOX'
-      to_mb_name   = imap_to.uri_mailbox || 'INBOX'
+      mailbox_from = imap_from.mailbox(imap_from.uri_mailbox || 'INBOX')
+      mailbox_to   = imap_to.mailbox(imap_to.uri_mailbox || 'INBOX')
 
-      return if excluded?(from_mb_name) || excluded?(to_mb_name)
-
-      copy_messages(imap_from, from_mb_name, imap_to, to_mb_name)
+      copy_mailbox(mailbox_from, mailbox_to)
 
       imap_from.disconnect
       imap_to.disconnect
@@ -152,19 +150,34 @@ module Larch
 
     private
 
-    def copy_messages(imap_from, mb_name_from, imap_to, mb_name_to)
-      raise ArgumentError, "imap_from must be a Larch::IMAP instance" unless imap_from.is_a?(IMAP)
-      raise ArgumentError, "imap_to must be a Larch::IMAP instance" unless imap_to.is_a?(IMAP)
+    def copy_mailbox(mailbox_from, mailbox_to)
+      raise ArgumentError, "mailbox_from must be a Larch::IMAP::Mailbox instance" unless mailbox_from.is_a?(Larch::IMAP::Mailbox)
+      raise ArgumentError, "mailbox_to must be a Larch::IMAP::Mailbox instance" unless mailbox_to.is_a?(Larch::IMAP::Mailbox)
 
-      return if excluded?(mb_name_from) || excluded?(mb_name_to)
+      return if excluded?(mailbox_from.name) || excluded?(mailbox_to.name)
 
-      @log.info "copying messages from #{imap_from.host}/#{mb_name_from} to #{imap_to.host}/#{mb_name_to}"
+      mailbox_to.subscribe if mailbox_from.subscribed?
+      copy_messages(mailbox_from, mailbox_to)
 
-      mailbox_from = imap_from.mailbox(mb_name_from)
+      mailbox_from.each_mailbox do |child_from|
+        next if excluded?(child_from.name)
+        child_to = mailbox_to.imap.mailbox(child_from.name, child_from.delim)
+        copy_mailbox(child_from, child_to)
+      end
+    end
+
+    def copy_messages(mailbox_from, mailbox_to)
+      raise ArgumentError, "mailbox_from must be a Larch::IMAP::Mailbox instance" unless mailbox_from.is_a?(Larch::IMAP::Mailbox)
+      raise ArgumentError, "mailbox_to must be a Larch::IMAP::Mailbox instance" unless mailbox_to.is_a?(Larch::IMAP::Mailbox)
+
+      return if excluded?(mailbox_from.name) || excluded?(mailbox_to.name)
+
+      imap_from = mailbox_from.imap
+      imap_to   = mailbox_to.imap
+
+      @log.info "copying messages from #{imap_from.host}/#{mailbox_from.name} to #{imap_to.host}/#{mailbox_to.name}"
 
       @total += mailbox_from.length
-
-      mailbox_to = imap_to.mailbox(mb_name_to)
 
       mailbox_from.each_guid do |guid|
         next if mailbox_to.has_guid?(guid)

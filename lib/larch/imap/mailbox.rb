@@ -88,9 +88,15 @@ class Mailbox
 
   # Iterates through messages in this mailbox, yielding the Larch message guid
   # of each to the provided block.
-  def each_guid
+  def each_guid # :yields: guid
     scan
     @db_mailbox.messages.each {|db_message| yield db_message.guid }
+  end
+
+  # Iterates through mailboxes that are first-level children of this mailbox,
+  # yielding a Larch::IMAP::Mailbox object for each to the provided block.
+  def each_mailbox # :yields: mailbox
+    mailboxes.each {|mb| yield mb }
   end
 
   # Returns a Larch::IMAP::Message struct representing the message with the
@@ -132,6 +138,18 @@ class Mailbox
     @db_mailbox.messages_dataset.count
   end
   alias size length
+
+  # Returns an Array of Larch::IMAP::Mailbox objects representing mailboxes that
+  # are first-level children of this mailbox.
+  def mailboxes
+    return [] if @attr.include?(:Noinferiors)
+
+    all        = @imap.safely{ @imap.conn.list('', "#{@name_utf7}#{@delim}%") } || []
+    subscribed = @imap.safely{ @imap.conn.lsub('', "#{@name_utf7}#{@delim}%") } || []
+
+    all.map{|mb| Mailbox.new(@imap, mb.name, mb.delim,
+        subscribed.any?{|s| s.name == mb.name}, mb.attr) }
+  end
 
   # Same as fetch, but doesn't mark the message as seen.
   def peek(message_id)

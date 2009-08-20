@@ -6,7 +6,7 @@ module Larch
 # required reading if you're doing anything with IMAP in Ruby:
 # http://sup.rubyforge.org
 class IMAP
-  attr_reader :conn, :db_account, :options
+  attr_reader :conn, :db_account, :mailboxes, :options
 
   # URI format validation regex.
   REGEX_URI = URI.regexp(['imap', 'imaps'])
