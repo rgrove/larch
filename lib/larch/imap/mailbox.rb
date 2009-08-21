@@ -181,7 +181,7 @@ class Mailbox
     if @db_mailbox.uidvalidity && @db_mailbox.uidnext &&
         status['UIDVALIDITY'] == @db_mailbox.uidvalidity
 
-      # The UIDVALIDITY is the same as what we saw last time we scanned at this
+      # The UIDVALIDITY is the same as what we saw last time we scanned this
       # mailbox, which means that all the existing messages in the database are
       # still valid. We only need to request headers for new messages.
       #
