@@ -9,6 +9,7 @@ Version 1.1.0 (git)
   * Folders are now copied recursively by default.
   * Progress information is now displayed regularly while scanning large
     mailboxes.
+  * The --fast-scan option has been removed.
 
 Version 1.0.2 (2009-08-05)
   * Fixed a bug that caused Larch to try to set the read-only \Recent flag on

@@ -30,14 +30,6 @@ class IMAP
   #   that it's not actually possible to simulate mailbox creation, so
   #   +:dry_run+ mode always behaves as if +:create_mailbox+ is +false+.
   #
-  # [:fast_scan]
-  #   If +true+, a faster but less accurate method will be used to scan
-  #   mailboxes. This will speed up the initial mailbox scan, but will also
-  #   reduce the effectiveness of the message unique id generator. This is
-  #   probably acceptable when copying a very large mailbox to an empty mailbox,
-  #   but if the destination already contains messages, using this option is not
-  #   advised.
-  #
   # [:max_retries]
   #   After a recoverable error occurs, retry the operation up to this many
   #   times. Default is 3.

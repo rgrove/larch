@@ -37,7 +37,6 @@ EOS
     text "\nGeneral Options:"
     opt :database,         "Specify a non-default message database to use", :short => :none, :default => File.join('~', '.larch', 'larch.db')
     opt :dry_run,          "Don't actually make any changes", :short => '-n'
-    opt :fast_scan,        "Use a faster (but less accurate) method to scan mailboxes. This may result in messages being re-copied.", :short => :none
     opt :max_retries,      "Maximum number of times to retry after a recoverable error", :short => :none, :default => 3
     opt :no_create_folder, "Don't create destination folders that don't already exist", :short => :none
     opt :ssl_certs,        "Path to a trusted certificate bundle to use to verify server SSL certificates", :short => :none, :type => :string
@@ -115,7 +114,6 @@ EOS
 
   imap_from = Larch::IMAP.new(uri_from,
       :dry_run     => options[:dry_run],
-      :fast_scan   => options[:fast_scan],
       :max_retries => options[:max_retries],
       :ssl_certs   => options[:ssl_certs] || nil,
       :ssl_verify  => options[:ssl_verify]
@@ -124,7 +122,6 @@ EOS
   imap_to = Larch::IMAP.new(uri_to,
       :create_mailbox => !options[:no_create_folder] && !options[:dry_run],
       :dry_run        => options[:dry_run],
-      :fast_scan      => options[:fast_scan],
       :max_retries    => options[:max_retries],
       :ssl_certs      => options[:ssl_certs] || nil,
       :ssl_verify     => options[:ssl_verify]
