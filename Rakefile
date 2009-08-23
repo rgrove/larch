@@ -45,7 +45,7 @@ Rake::RDocTask.new do |rd|
   rd.title    = 'Larch Documentation'
   rd.rdoc_dir = 'doc'
 
-  rd.rdoc_files.include('README.rdoc', 'lib/**/*.rb')
+  rd.rdoc_files.include('README.rdoc', 'HISTORY', 'lib/**/*.rb')
 
   rd.options << '--line-numbers' << '--inline-source'
 end

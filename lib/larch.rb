@@ -8,10 +8,12 @@ require 'fileutils'
 require 'net/imap'
 require 'time'
 require 'uri'
+require 'yaml'
 
 require 'sequel'
 require 'sequel/extensions/migration'
 
+require 'larch/config'
 require 'larch/errors'
 require 'larch/imap'
 require 'larch/imap/mailbox'
@@ -21,21 +23,19 @@ require 'larch/version'
 module Larch
 
   class << self
-    attr_reader :db, :log, :exclude
+    attr_reader :config, :db, :log, :exclude
 
     EXCLUDE_COMMENT = /#.*$/
     EXCLUDE_REGEX   = /^\s*\/(.*)\/\s*/
     GLOB_PATTERNS   = {'*' => '.*', '?' => '.'}
     LIB_DIR         = File.join(File.dirname(File.expand_path(__FILE__)), 'larch')
 
-    def init(database, config = {})
-      @config = {
-        :exclude   => [],
-        :log_level => :info
-      }.merge(config)
+    def init(config)
+      raise ArgumentError, "config must be a Larch::Config instance" unless config.is_a?(Config)
 
-      @log = Logger.new(@config[:log_level])
-      @db  = open_db(database)
+      @config = config
+      @log    = Logger.new(@config[:verbosity])
+      @db     = open_db(@config[:database])
 
       @exclude = @config[:exclude].map do |e|
         if e =~ EXCLUDE_REGEX
@@ -46,6 +46,8 @@ module Larch
       end
 
       load_exclude_file(@config[:exclude_file]) if @config[:exclude_file]
+
+      Net::IMAP.debug = true if @log.level == :insane
 
       # Stats
       @copied = 0

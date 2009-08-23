@@ -6,9 +6,16 @@ Version 1.1.0 (git)
     database, which allows Larch to resync and resume interrupted syncs much
     more quickly without having to rescan all messages. As a result, SQLite 3 is
     now a dependency.
+  * Larch now loads config options from ~/.larch/config.yaml if it exists, or
+    from the file specified by the --config command-line option. This file may
+    contain multiple sections. If a section name is specified via the
+    command-line, Larch will use the options in that section for the session;
+    otherwise it will use the options in the "default" section. See the README
+    for more details.
   * Folders are now copied recursively by default.
   * Progress information is now displayed regularly while scanning large
     mailboxes.
+  * Added short versions of common command-line options.
   * The --fast-scan option has been removed.
 
 Version 1.0.2 (2009-08-05)

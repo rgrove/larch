@@ -2,79 +2,88 @@
 
 Larch is a tool to copy messages from one IMAP server to another quickly and
 safely. It's smart enough not to copy messages that already exist on the
-destination and robust enough to deal with ornery or misbehaving servers.
+destination and robust enough to deal with interruptions caused by flaky
+connections or misbehaving servers.
 
 Larch is particularly well-suited for copying email to, from, or between Gmail
 accounts.
 
 *Author*::    Ryan Grove (mailto:ryan@wonko.com)
-*Version*::   1.0.2 (2009-08-05)
+*Version*::   1.1.0 (git)
 *Copyright*:: Copyright (c) 2009 Ryan Grove. All rights reserved.
 *License*::   GPL 2.0 (http://opensource.org/licenses/gpl-2.0.php)
 *Website*::   http://github.com/rgrove/larch
 
 == Installation
 
-Install Larch via RubyGems:
+Install the latest stable version of Larch via RubyGems:
 
   gem install larch
 
+Or you can install the latest development version from GitHub:
+
+  gem sources -a http://gems.github.com
+  gem install rgrove-larch
+
 == Usage
 
+  larch [config section] [options]
   larch --from <uri> --to <uri> [options]
 
-  Required:
-       --from, -f <s>:   URI of the source IMAP server.
-         --to, -t <s>:   URI of the destination IMAP server.
+  Server Options:
+         --from, -f <s>:   URI of the source IMAP server.
+  --from-folder, -F <s>:   Source folder to copy from (default: INBOX)
+    --from-pass, -p <s>:   Source server password (default: prompt)
+    --from-user, -u <s>:   Source server username (default: prompt)
+           --to, -t <s>:   URI of the destination IMAP server.
+    --to-folder, -T <s>:   Destination folder to copy to (default: INBOX)
+      --to-pass, -P <s>:   Destination server password (default: prompt)
+      --to-user, -U <s>:   Destination server username (default: prompt)
 
-  Copy Options:
-                --all:   Copy all folders recursively
-     --all-subscribed:   Copy all subscribed folders recursively
-       --exclude <s+>:   List of mailbox names/patterns that shouldn't be
-                         copied
-   --exclude-file <s>:   Filename containing mailbox names/patterns that
-                         shouldn't be copied
-    --from-folder <s>:   Source folder to copy from (default: INBOX)
-      --from-pass <s>:   Source server password (default: prompt)
-      --from-user <s>:   Source server username (default: prompt)
-      --to-folder <s>:   Destination folder to copy to (default: INBOX)
-        --to-pass <s>:   Destination server password (default: prompt)
-        --to-user <s>:   Destination server username (default: prompt)
+  Sync Options:
+              --all, -a:   Copy all folders recursively
+   --all-subscribed, -s:   Copy all subscribed folders recursively
+         --exclude <s+>:   List of mailbox names/patterns that shouldn't be
+                           copied
+     --exclude-file <s>:   Filename containing mailbox names/patterns that
+                           shouldn't be copied
 
   General Options:
-        --dry-run, -n:   Don't actually make any changes.
-          --fast-scan:   Use a faster (but less accurate) method to scan
-                         mailboxes. This may result in messages being
-                         re-copied.
-    --max-retries <i>:   Maximum number of times to retry after a recoverable
-                         error (default: 3)
-   --no-create-folder:   Don't create destination folders that don't already
-                         exist
-      --ssl-certs <s>:   Path to a trusted certificate bundle to use to
-                         verify server SSL certificates
-         --ssl-verify:   Verify server SSL certificates
-  --verbosity, -V <s>:   Output verbosity: debug, info, warn, error, or fatal
-                         (default: info)
-        --version, -v:   Print version and exit
-           --help, -h:   Show this message
+       --config, -c <s>:   Specify a non-default config file to use (default:
+                           ~/.larch/config.yaml)
+         --database <s>:   Specify a non-default message database to use
+                           (default: ~/.larch/larch.db)
+          --dry-run, -n:   Don't actually make any changes
+      --max-retries <i>:   Maximum number of times to retry after a recoverable
+                           error (default: 3)
+     --no-create-folder:   Don't create destination folders that don't already
+                           exist
+        --ssl-certs <s>:   Path to a trusted certificate bundle to use to
+                           verify server SSL certificates
+           --ssl-verify:   Verify server SSL certificates
+    --verbosity, -V <s>:   Output verbosity: debug, info, warn, error, or fatal
+                           (default: info)
+          --version, -v:   Print version and exit
+             --help, -h:   Show this message
 
-== Examples
+== Usage Examples
 
-Larch is run from the command line. At a minimum, you must specify a source
-server and a destination server in the form of IMAP URIs. You may also specify
-one or more options:
+Larch is run from the command line. The following examples demonstrate how to
+run Larch using only command line arguments, but you may also place these
+options in a config file and run Larch without any arguments if you prefer. See
+the "Configuration" section below for more details.
 
-  larch --from <uri> --to <uri> [options]
+For an overview of all available options, run:
 
-For an overview of all available command-line options, run:
+  larch -h
 
-  larch --help
-
-Specify a source server and a destination server and Larch will prompt you for
-the necessary usernames and passwords, then sync the contents of the source's
-+INBOX+ folder to the destination:
+At a minimum, you must <b>specify a source server and a destination server</b>
+in the form of IMAP URIs:
 
   larch --from imap://mail.example.com --to imap://imap.gmail.com
+
+Larch will prompt you for the necessary usernames and passwords, then sync the
+contents of the source's +INBOX+ folder to the destination's INBOX folder.
 
 To <b>connect using SSL</b>, specify a URI beginning with <tt>imaps://</tt>:
 
@@ -82,10 +91,10 @@ To <b>connect using SSL</b>, specify a URI beginning with <tt>imaps://</tt>:
 
 If you'd like to <b>sync a specific folder</b> other than +INBOX+, specify the
 source and destination folders using <tt>--from-folder</tt> and
-<tt>--to-folder</tt>:
+<tt>--to-folder</tt>. Folder names containing spaces must be enclosed in quotes:
 
   larch --from imaps://mail.example.com --to imaps://imap.gmail.com \
-    --from-folder "Sent Mail" --to-folder "Sent Mail"
+    --from-folder 'Sent Mail' --to-folder 'Sent Mail'
 
 To <b>sync all folders</b>, use the <tt>--all</tt> option (or
 <tt>--all-subscribed</tt> if you only want to <b>sync subscribed folders</b>):
@@ -99,7 +108,7 @@ already exist. To prevent this, add the <tt>--no-create-folder</tt> option:
     --no-create-folder
 
 You can <b>prevent Larch from syncing one or more folders</b> by using the
-<tt>--exclude</tt> option:
+<tt>--exclude</tt> option, which accepts multiple arguments:
 
   larch --from imaps://mail.example.com --to imaps://imap.gmail.com --all \
     --exclude Spam Trash Drafts "[Gmail]/*"
@@ -112,9 +121,82 @@ option:
     --exclude-file exclude.txt
 
 The wildcard characters <tt>*</tt> and <tt>?</tt> are supported in exclusion
-lists. You can also use a regular expression by enclosing a pattern in
+lists. You may also use a regular expression by enclosing a pattern in
 forward slashes, so the previous example could be achieved with the
 pattern <tt>/(Spam|Trash|Drafts|\[Gmail\]\/.*)/</tt>
+
+== Configuration
+
+While it's possible to control Larch entirely from the command line, this can be
+inconvenient if you need to specify a lot of options or if you run Larch
+frequently and can't always remember which options to use. Using a configuration
+file can simplify things.
+
+By default, Larch looks for a config file at <tt>~/.larch/config.yaml</tt> and
+uses it if found. You may specify a custom config file using the
+<tt>--config</tt> command line option.
+
+The Larch configuration file is a simple YAML[http://yaml.org/] file that may
+contain multiple sections, each with a different set of options, as well as a
+special +default+ section. The options in the +default+ section will be used
+unless they're overridden either in another config section or on the command
+line.
+
+=== Example
+
+Here's a sample Larch config file:
+
+  default:
+    all-subscribed: true # Copy all subscribed folders by default
+
+  # Copy mail from Gmail to my server, excluding stuff I don't want.
+  gmail to my server:
+    from: imaps://imap.gmail.com
+    from-user: example
+    from-pass: secret
+
+    to: imaps://mail.example.com
+    to-user: example
+    to-pass: secret
+
+    exclude:
+      - "[Gmail]/Sent Mail"
+      - "[Gmail]/Spam"
+      - "[Gmail]/Trash"
+
+  # Copy mail from my INBOX to Gmail's INBOX
+  my inbox to gmail inbox:
+    all-subscribed: false
+
+    from: imaps://mail.example.com
+    from-folder: INBOX
+    from-user: example
+    from-pass: secret
+
+    to: imaps://imap.gmail.com
+    to-folder: INBOX
+    to-user: example
+    to-pass: secret
+
+This file contains three sections. The options from +default+ will be used in
+all other sections as well unless they're overridden.
+
+To specify which config section you want Larch to use, just pass its name on the
+command line (use quotes if the name contains spaces):
+
+  larch 'gmail to my server'
+
+If you specify additional command line options, they'll override options in the
+config file:
+
+  larch 'gmail to my server' --from-user anotheruser
+
+Running Larch with no command line arguments will cause the +default+ section
+to be used. With the example above, this will result in an error since the
++default+ section doesn't contain the required +from+ and +to+ options, but if
+you only need to use Larch with a single configuration, you could use the
++default+ section for everything and save yourself some typing on the command
+line.
 
 == Server Compatibility
 

@@ -11,120 +11,97 @@ module Larch
   # Parse command-line options.
   options = Trollop.options do
     version "Larch #{APP_VERSION}\n" << APP_COPYRIGHT
-    banner <<EOS
+    banner <<-EOS
 Larch syncs messages from one IMAP server to another. Awesomely.
 
 Usage:
+  larch [config section] [options]
   larch --from <uri> --to <uri> [options]
 
-Required:
+Server Options:
 EOS
-    opt :from, "URI of the source IMAP server.", :short => '-f', :type => :string, :required => true
-    opt :to,   "URI of the destination IMAP server.", :short => '-t', :type => :string, :required => true
+    opt :from,        "URI of the source IMAP server.", :short => '-f', :type => :string
+    opt :from_folder, "Source folder to copy from", :short => '-F', :default => Config::DEFAULT['from-folder']
+    opt :from_pass,   "Source server password (default: prompt)", :short => '-p', :type => :string
+    opt :from_user,   "Source server username (default: prompt)", :short => '-u', :type => :string
+    opt :to,          "URI of the destination IMAP server.", :short => '-t', :type => :string
+    opt :to_folder,   "Destination folder to copy to", :short => '-T', :default => Config::DEFAULT['to-folder']
+    opt :to_pass,     "Destination server password (default: prompt)", :short => '-P', :type => :string
+    opt :to_user,     "Destination server username (default: prompt)", :short => '-U', :type => :string
 
     text "\nSync Options:"
-    opt :all,              "Copy all folders recursively", :short => :none
-    opt :all_subscribed,   "Copy all subscribed folders recursively", :short => :none
+    opt :all,              "Copy all folders recursively", :short => '-a'
+    opt :all_subscribed,   "Copy all subscribed folders recursively", :short => '-s'
     opt :exclude,          "List of mailbox names/patterns that shouldn't be copied", :short => :none, :type => :strings, :multi => true
     opt :exclude_file,     "Filename containing mailbox names/patterns that shouldn't be copied", :short => :none, :type => :string
-    opt :from_folder,      "Source folder to copy from", :short => :none, :default => 'INBOX'
-    opt :from_pass,        "Source server password (default: prompt)", :short => :none, :type => :string
-    opt :from_user,        "Source server username (default: prompt)", :short => :none, :type => :string
-    opt :to_folder,        "Destination folder to copy to", :short => :none, :default => 'INBOX'
-    opt :to_pass,          "Destination server password (default: prompt)", :short => :none, :type => :string
-    opt :to_user,          "Destination server username (default: prompt)", :short => :none, :type => :string
 
     text "\nGeneral Options:"
-    opt :database,         "Specify a non-default message database to use", :short => :none, :default => File.join('~', '.larch', 'larch.db')
+    opt :config,           "Specify a non-default config file to use", :short => '-c', :default => Config::DEFAULT['config']
+    opt :database,         "Specify a non-default message database to use", :short => :none, :default => Config::DEFAULT['database']
     opt :dry_run,          "Don't actually make any changes", :short => '-n'
-    opt :max_retries,      "Maximum number of times to retry after a recoverable error", :short => :none, :default => 3
+    opt :max_retries,      "Maximum number of times to retry after a recoverable error", :short => :none, :default => Config::DEFAULT['max-retries']
     opt :no_create_folder, "Don't create destination folders that don't already exist", :short => :none
     opt :ssl_certs,        "Path to a trusted certificate bundle to use to verify server SSL certificates", :short => :none, :type => :string
     opt :ssl_verify,       "Verify server SSL certificates", :short => :none
-    opt :verbosity,        "Output verbosity: debug, info, warn, error, or fatal", :short => '-V', :default => 'info'
+    opt :verbosity,        "Output verbosity: debug, info, warn, error, or fatal", :short => '-V', :default => Config::DEFAULT['verbosity']
   end
 
-  # Validate command-line options.
-  [:from, :to].each do |sym|
-    unless options[sym] =~ IMAP::REGEX_URI
-      Trollop.die sym, "must be a valid IMAP URI (e.g. imap://example.com)"
-    end
+  # Load config.
+  config = Config.new(ARGV.shift || 'default', options[:config], options)
+  
+  if options[:config_given]
+    Trollop.die :config, ": file not found: #{options[:config]}" unless File.exist?(options[:config])
   end
 
-  unless Logger::LEVELS.has_key?(options[:verbosity].to_sym)
-    Trollop.die :verbosity, "must be one of: #{Logger::LEVELS.keys.join(', ')}"
-  end
-
-  if options[:exclude_file_given]
-    filename = options[:exclude_file]
-
-    Trollop.die :exclude_file, ": file not found: #{filename}" unless File.file?(filename)
-    Trollop.die :exclude_file, ": file cannot be read: #{filename}" unless File.readable?(filename)
-  end
-
-  # Prevent conflicting options from being used.
-  if options[:all_given]
-    [:all_subscribed, :from_folder, :to_folder].each do |o|
-      Trollop.die :all, "may not be used with --#{o.to_s.gsub('_', '-')}" if options["#{o}_given".to_sym]
-    end
-  end
-
-  if options[:all_subscribed_given]
-    [:all, :from_folder, :to_folder].each do |o|
-      Trollop.die :all_subscribed, "may not be used with --#{o.to_s.gsub('_', '-')}" if options["#{o}_given".to_sym]
-    end
+  # Validate config.
+  begin
+    config.validate
+  rescue Config::Error => e
+    abort "Config error: #{e}"
   end
 
   # Create URIs.
-  uri_from = URI(options[:from])
-  uri_to   = URI(options[:to])
+  uri_from = URI(config.from)
+  uri_to   = URI(config.to)
 
-  # --all and --all-subscribed options override folders specified in URIs
-  if options[:all_given] || options[:all_subscribed_given]
+  # Use --from-folder and --to-folder unless folders were specified in the URIs.
+  uri_from.path ||= '/' + CGI.escape(config.from_folder.gsub(/^\//, ''))
+  uri_to.path   ||= '/' + CGI.escape(config.to_folder.gsub(/^\//, ''))
+
+  # --all and --all-subscribed options override folders
+  if config.all || config.all_subscribed
     uri_from.path = ''
     uri_to.path   = ''
   end
 
-  # --from-folder and --to-folder options override folders specified in URIs
-  if options[:from_folder_given] || options[:to_folder_given]
-    uri_from.path = '/' + CGI.escape(options[:from_folder].gsub(/^\//, ''))
-    uri_to.path   = '/' + CGI.escape(options[:to_folder].gsub(/^\//, ''))
-  end
-
   # Usernames and passwords specified as arguments override those in the URIs
-  uri_from.user     = CGI.escape(options[:from_user]) if options[:from_user]
-  uri_from.password = CGI.escape(options[:from_pass]) if options[:from_pass]
-  uri_to.user       = CGI.escape(options[:to_user]) if options[:to_user]
-  uri_to.password   = CGI.escape(options[:to_pass]) if options[:to_pass]
+  uri_from.user     = CGI.escape(config.from_user) if config.from_user
+  uri_from.password = CGI.escape(config.from_pass) if config.from_pass
+  uri_to.user       = CGI.escape(config.to_user) if config.to_user
+  uri_to.password   = CGI.escape(config.to_pass) if config.to_pass
 
-  # If usernames/passwords aren't specified in either URIs or args, then prompt.
+  # If usernames/passwords aren't specified in either URIs or config, then prompt.
   uri_from.user     ||= CGI.escape(ask("Source username (#{uri_from.host}): "))
   uri_from.password ||= CGI.escape(ask("Source password (#{uri_from.host}): ") {|q| q.echo = false })
   uri_to.user       ||= CGI.escape(ask("Destination username (#{uri_to.host}): "))
   uri_to.password   ||= CGI.escape(ask("Destination password (#{uri_to.host}): ") {|q| q.echo = false })
 
   # Go go go!
-  init(options[:database],
-    :exclude      => options[:exclude] ? options[:exclude].flatten : [],
-    :exclude_file => options[:exclude_file],
-    :log_level    => options[:verbosity]
-  )
-
-  Net::IMAP.debug = true if @log.level == :insane
+  init(config)
 
   imap_from = Larch::IMAP.new(uri_from,
-      :dry_run     => options[:dry_run],
-      :max_retries => options[:max_retries],
-      :ssl_certs   => options[:ssl_certs] || nil,
-      :ssl_verify  => options[:ssl_verify]
+      :dry_run     => config[:dry_run],
+      :max_retries => config[:max_retries],
+      :ssl_certs   => config[:ssl_certs] || nil,
+      :ssl_verify  => config[:ssl_verify]
   )
 
   imap_to = Larch::IMAP.new(uri_to,
-      :create_mailbox => !options[:no_create_folder] && !options[:dry_run],
-      :dry_run        => options[:dry_run],
-      :max_retries    => options[:max_retries],
-      :ssl_certs      => options[:ssl_certs] || nil,
-      :ssl_verify     => options[:ssl_verify]
+      :create_mailbox => !config[:no_create_folder] && !config[:dry_run],
+      :dry_run        => config[:dry_run],
+      :max_retries    => config[:max_retries],
+      :ssl_certs      => config[:ssl_certs] || nil,
+      :ssl_verify     => config[:ssl_verify]
   )
 
   unless RUBY_PLATFORM =~ /mswin|mingw|bccwin|wince|java/
@@ -136,9 +113,9 @@ EOS
     end
   end
 
-  if options[:all_given]
+  if config.all
     copy_all(imap_from, imap_to)
-  elsif options[:all_subscribed_given]
+  elsif config.all_subscribed
     copy_all(imap_from, imap_to, true)
   else
     copy_folder(imap_from, imap_to)
