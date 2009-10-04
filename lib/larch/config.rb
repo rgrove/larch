@@ -31,8 +31,8 @@ class Config
     @override = {}
 
     override.each do |k, v|
-      k = k.to_s.gsub('_', '-')
-      @override[k] = v if DEFAULT.has_key?(k) && v != DEFAULT[k]
+      opt = k.to_s.gsub('_', '-')
+      @override[opt] = v if DEFAULT.has_key?(opt) && override["#{k}_given".to_sym] && v != DEFAULT[opt]
     end
 
     load_file(filename)
