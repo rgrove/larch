@@ -135,7 +135,7 @@ class IMAP
       raise unless @options[:create_mailbox] && retries == 0
 
       info "creating mailbox: #{name}"
-      safely { @conn.create(name) } unless @options[:dry_run]
+      safely { @conn.create(Net::IMAP.encode_utf7(name)) } unless @options[:dry_run]
 
       retries += 1
       retry
@@ -322,11 +322,13 @@ class IMAP
 
     @mutex.synchronize do
       # Remove cached mailboxes that no longer exist.
-      @mailboxes.delete_if {|k, v| !all.any?{|mb| mb.name == k}}
+      @mailboxes.delete_if {|k, v| !all.any?{|mb| Net::IMAP.decode_utf7(mb.name) == k}}
 
       # Update cached mailboxes.
       all.each do |mb|
-        @mailboxes[mb.name] ||= Mailbox.new(self, mb.name, mb.delim,
+        name = Net::IMAP.decode_utf7(mb.name)
+
+        @mailboxes[name] ||= Mailbox.new(self, name, mb.delim,
             subscribed.any?{|s| s.name == mb.name}, mb.attr)
       end
     end
