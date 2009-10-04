@@ -65,8 +65,8 @@ EOS
   uri_to   = URI(config.to)
 
   # Use --from-folder and --to-folder unless folders were specified in the URIs.
-  uri_from.path ||= '/' + CGI.escape(config.from_folder.gsub(/^\//, ''))
-  uri_to.path   ||= '/' + CGI.escape(config.to_folder.gsub(/^\//, ''))
+  uri_from.path = uri_from.path.empty? ? '/' + CGI.escape(config.from_folder.gsub(/^\//, '')) : uri_from.path
+  uri_to.path   = uri_to.path.empty?   ? '/' + CGI.escape(config.to_folder.gsub(/^\//, ''))   : uri_to.path
 
   # --all and --all-subscribed options override folders
   if config.all || config.all_subscribed
