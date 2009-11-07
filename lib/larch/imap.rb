@@ -123,6 +123,7 @@ class IMAP
     retries = 0
 
     name = name.gsub(delim, self.delim)
+    name = 'INBOX' if name.downcase == 'inbox'
 
     begin
       @mailboxes.fetch(name) do
@@ -327,6 +328,7 @@ class IMAP
       # Update cached mailboxes.
       all.each do |mb|
         name = Net::IMAP.decode_utf7(mb.name)
+        name = 'INBOX' if name.downcase == 'inbox'
 
         @mailboxes[name] ||= Mailbox.new(self, name, mb.delim,
             subscribed.any?{|s| s.name == mb.name}, mb.attr)
