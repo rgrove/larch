@@ -16,14 +16,13 @@ accounts.
 
 == Installation
 
-Install the latest stable version of Larch via RubyGems:
+Latest stable release:
 
   gem install larch
 
-Or you can install the latest development version from GitHub:
+Latest development version:
 
-  gem sources -a http://gems.github.com
-  gem install rgrove-larch
+  gem install larch -s http://gemcutter.org --prerelease
 
 == Usage
 

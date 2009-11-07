@@ -2,11 +2,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{larch}
-  s.version = "1.0.2.4"
+  s.version = "1.1.0.dev.20091106"
 
-  s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
+  s.required_rubygems_version = Gem::Requirement.new("> 1.3.1") if s.respond_to? :required_rubygems_version=
   s.authors = ["Ryan Grove"]
-  s.date = %q{2009-10-04}
+  s.date = %q{2009-11-06}
   s.default_executable = %q{larch}
   s.email = %q{ryan@wonko.com}
   s.executables = ["larch"]
@@ -14,7 +14,7 @@ Gem::Specification.new do |s|
   s.homepage = %q{http://github.com/rgrove/larch/}
   s.require_paths = ["lib"]
   s.required_ruby_version = Gem::Requirement.new(">= 1.8.6")
-  s.rubygems_version = %q{1.3.2}
+  s.rubygems_version = %q{1.3.5}
   s.summary = %q{Larch syncs messages from one IMAP server to another. Awesomely.}
 
   if s.respond_to? :specification_version then

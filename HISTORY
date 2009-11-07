@@ -18,6 +18,7 @@ Version 1.1.0 (git)
   * Added short versions of common command-line options.
   * The --fast-scan option has been removed.
   * Fixed encoding issues when creating mailboxes and getting mailbox lists.
+  * Fixed incorrect case-sensitive treatment of the 'INBOX' folder name.
 
 Version 1.0.2 (2009-08-05)
   * Fixed a bug that caused Larch to try to set the read-only \Recent flag on
