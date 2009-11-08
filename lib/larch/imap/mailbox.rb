@@ -220,8 +220,11 @@ class Mailbox
             check_response_fields(data, 'UID', 'FLAGS')
             expected_uids.delete(data.attr['UID'])
 
-            @db_mailbox.messages_dataset.filter(:uid => data.attr['UID']).
-                  update(:flags => data.attr['FLAGS'].map{|f| f.to_s }.join(','))
+            flags = data.attr['FLAGS'].map{|f| f.to_s }.join(',')
+
+            @db_mailbox.messages_dataset.filter(
+              {:uid => data.attr['UID']} & ~{:flags => flags}
+            ).update(:flags => flags)
           end
         end
       end
