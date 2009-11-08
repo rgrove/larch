@@ -2,7 +2,7 @@ module Larch; class IMAP
 
 # Represents an IMAP mailbox.
 class Mailbox
-  attr_reader :attr, :db_mailbox, :delim, :imap, :name, :state, :subscribed
+  attr_reader :attr, :db_mailbox, :delim, :flags, :imap, :name, :perm_flags, :state, :subscribed
 
   # Maximum number of message headers to fetch with a single IMAP command.
   FETCH_BLOCK_SIZE = 1024
@@ -20,6 +20,8 @@ class Mailbox
     @name       = name
     @name_utf7  = Net::IMAP.encode_utf7(@name)
     @delim      = delim
+    @flags      = []
+    @perm_flags = []
     @subscribed = subscribed
     @attr       = attr.flatten
 
@@ -74,10 +76,18 @@ class Mailbox
 
       debug "appending message: #{message.guid}"
 
-      # The \Recent flag is read-only, so we shouldn't try to set it at the
-      # destination.
       flags = message.flags.dup
-      flags.delete(:Recent)
+
+      # Don't set any flags that aren't supported on the destination mailbox.
+      flags.delete_if do |flag|
+        # The \Recent flag is read-only, so we shouldn't try to set it.
+        return true if flag == :Recent
+
+        unless @flags.include?(flag) || @perm_flags.include?(:*) || @perm_flags.include?(flag)
+          debug "flag not supported on destination: #{flag}"
+          true
+        end
+      end
 
       @imap.conn.append(@name_utf7, message.rfc822, flags, message.internaldate) unless @imap.options[:dry_run]
     end
@@ -381,6 +391,7 @@ class Mailbox
 
         debug "examining mailbox"
         @imap.conn.examine(@name_utf7)
+        refresh_flags
 
         @mutex.synchronize { @state = :examined }
 
@@ -408,6 +419,7 @@ class Mailbox
 
         debug "selecting mailbox"
         @imap.conn.select(@name_utf7)
+        refresh_flags
 
         @mutex.synchronize { @state = :selected }
 
@@ -501,6 +513,15 @@ class Mailbox
   # doesn't contain a valid Message-Id header.
   def parse_message_id(str)
     return str =~ REGEX_MESSAGE_ID ? $1 : nil
+  end
+
+  # Refreshes the list of valid flags for this mailbox.
+  def refresh_flags
+    return unless @imap.conn.responses.has_key?('FLAGS') &&
+        @imap.conn.responses.has_key?('PERMANENTFLAGS')
+
+    @flags      = Array(@imap.conn.responses['FLAGS'].first)
+    @perm_flags = Array(@imap.conn.responses['PERMANENTFLAGS'].first)
   end
 
 end
