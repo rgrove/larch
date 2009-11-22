@@ -173,6 +173,7 @@ class IMAP
            Errno::ENOTCONN,
            Errno::EPIPE,
            Errno::ETIMEDOUT,
+           IOError,
            Net::IMAP::ByeResponseError,
            OpenSSL::SSL::SSLError => e
 
