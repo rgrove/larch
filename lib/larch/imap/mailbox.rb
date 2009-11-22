@@ -69,22 +69,22 @@ class Mailbox
     raise ArgumentError, "must provide a Larch::IMAP::Message object" unless message.is_a?(Larch::IMAP::Message)
     return false if has_guid?(message.guid)
 
-    flags = message.flags.dup
-
-    # Don't set any flags that aren't supported on the destination mailbox.
-    flags.delete_if do |flag|
-      # The \Recent flag is read-only, so we shouldn't try to set it.
-      return true if flag == :Recent
-
-      unless @flags.include?(flag) || @perm_flags.include?(:*) || @perm_flags.include?(flag)
-        debug "flag not supported on destination: #{flag}"
-        true
-      end
-    end
-
     @imap.safely do
       unless imap_select(!!@imap.options[:create_mailbox])
         raise Larch::IMAP::Error, "mailbox cannot contain messages: #{@name}"
+      end
+
+      flags = message.flags.dup
+
+      # Don't set any flags that aren't supported on the destination mailbox.
+      flags.delete_if do |flag|
+        # The \Recent flag is read-only, so we shouldn't try to set it.
+        next true if flag == :Recent
+
+        unless @flags.include?(flag) || @perm_flags.include?(:*) || @perm_flags.include?(flag)
+          debug "flag not supported on destination: #{flag}"
+          true
+        end
       end
 
       debug "appending message: #{message.guid}"
