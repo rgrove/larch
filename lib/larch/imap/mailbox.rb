@@ -69,26 +69,25 @@ class Mailbox
     raise ArgumentError, "must provide a Larch::IMAP::Message object" unless message.is_a?(Larch::IMAP::Message)
     return false if has_guid?(message.guid)
 
+    flags = message.flags.dup
+
+    # Don't set any flags that aren't supported on the destination mailbox.
+    flags.delete_if do |flag|
+      # The \Recent flag is read-only, so we shouldn't try to set it.
+      return true if flag == :Recent
+
+      unless @flags.include?(flag) || @perm_flags.include?(:*) || @perm_flags.include?(flag)
+        debug "flag not supported on destination: #{flag}"
+        true
+      end
+    end
+
     @imap.safely do
       unless imap_select(!!@imap.options[:create_mailbox])
         raise Larch::IMAP::Error, "mailbox cannot contain messages: #{@name}"
       end
 
       debug "appending message: #{message.guid}"
-
-      flags = message.flags.dup
-
-      # Don't set any flags that aren't supported on the destination mailbox.
-      flags.delete_if do |flag|
-        # The \Recent flag is read-only, so we shouldn't try to set it.
-        return true if flag == :Recent
-
-        unless @flags.include?(flag) || @perm_flags.include?(:*) || @perm_flags.include?(flag)
-          debug "flag not supported on destination: #{flag}"
-          true
-        end
-      end
-
       @imap.conn.append(@name_utf7, message.rfc822, flags, message.internaldate) unless @imap.options[:dry_run]
     end
 
@@ -100,7 +99,7 @@ class Mailbox
   # of each to the provided block.
   def each_guid # :yields: guid
     scan
-    @db_mailbox.messages.each {|db_message| yield db_message.guid }
+    @db_mailbox.messages_dataset.each {|db_message| yield db_message.guid }
   end
 
   # Iterates through mailboxes that are first-level children of this mailbox,
@@ -222,7 +221,7 @@ class Mailbox
       info "fetching latest message flags..."
 
       expected_uids = {}
-      @db_mailbox.messages.each {|db_message| expected_uids[db_message.uid] = true }
+      @db_mailbox.messages_dataset.each {|db_message| expected_uids[db_message.uid] = true }
 
       imap_uid_fetch(flag_range, "(UID FLAGS)", 16384) do |fetch_data|
         Larch.db.transaction do
