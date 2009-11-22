@@ -220,20 +220,31 @@ class Mailbox
     if flag_range && flag_range.last - flag_range.first > 0
       info "fetching latest message flags..."
 
+      # Load the expected UIDs and their flags into a Hash for quicker lookups.
       expected_uids = {}
-      @db_mailbox.messages_dataset.each {|db_message| expected_uids[db_message.uid] = true }
+      @db_mailbox.messages_dataset.each do |db_message|
+        expected_uids[db_message.uid] = db_message.flags.split(',').map{|f| f.to_sym }
+      end
 
       imap_uid_fetch(flag_range, "(UID FLAGS)", 16384) do |fetch_data|
+        # Check the fields in the first response to ensure that everything we
+        # asked for is there.
+        check_response_fields(fetch_data.first, 'UID', 'FLAGS') unless fetch_data.empty?
+
         Larch.db.transaction do
           fetch_data.each do |data|
-            check_response_fields(data, 'UID', 'FLAGS')
-            expected_uids.delete(data.attr['UID'])
+            uid         = data.attr['UID']
+            flags       = data.attr['FLAGS']
+            local_flags = expected_uids[uid]
 
-            flags = data.attr['FLAGS'].map{|f| f.to_s }.join(',')
+            # If we haven't seen this message before, or if its flags have
+            # changed, update the database.
+            unless local_flags && local_flags == flags
+              @db_mailbox.messages_dataset.filter(:uid => uid).update(
+                  :flags => flags.map{|f| f.to_s }.join(','))
+            end
 
-            @db_mailbox.messages_dataset.filter(
-              {:uid => data.attr['UID']} & ~{:flags => flags}
-            ).update(:flags => flags)
+            expected_uids.delete(uid)
           end
         end
       end
