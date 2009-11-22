@@ -1,6 +1,6 @@
 module Larch; module Database
 
-class Mailbox < Sequel::Model
+class Mailbox < Sequel::Model(:mailboxes)
   plugin :hook_class_methods
   one_to_many :messages, :class => Larch::Database::Message
 
