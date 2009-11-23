@@ -54,9 +54,9 @@ class IMAP
 
     raise ArgumentError, "must provide a username and password" unless @uri.user && @uri.password
 
-    @conn       = nil
-    @mailboxes  = {}
-    @mutex      = Mutex.new
+    @conn      = nil
+    @mailboxes = {}
+    @mutex     = Mutex.new
 
     @db_account = Database::Account.find_or_create(
       :hostname => host,

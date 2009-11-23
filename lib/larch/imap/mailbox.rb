@@ -161,8 +161,8 @@ class Mailbox
   end
 
   # Same as fetch, but doesn't mark the message as seen.
-  def peek(message_id)
-    fetch(message_id, true)
+  def peek(guid)
+    fetch(guid, true)
   end
 
   # Resets the mailbox state.
@@ -512,7 +512,18 @@ class Mailbox
     blocks.each do |block|
       data = @imap.safely do
         imap_examine
-        @imap.conn.uid_fetch(block, fields)
+
+        begin
+          data = @imap.conn.uid_fetch(block, fields)
+
+        rescue Net::IMAP::NoResponseError => e
+          raise unless e.message == 'Some messages could not be FETCHed (Failure)'
+
+          # Workaround for stupid Gmail shenanigans.
+          warn "Gmail error: '#{e.message}'; continuing anyway"
+        end
+
+        next data
       end
 
       yield data unless data.nil?
