@@ -12,7 +12,7 @@ class Config
     'exclude'          => [],
     'exclude-file'     => nil,
     'from'             => nil,
-    'from-folder'      => 'INBOX',
+    'from-folder'      => nil, # actually INBOX; see validate()
     'from-pass'        => nil,
     'from-user'        => nil,
     'max-retries'      => 3,
@@ -20,7 +20,7 @@ class Config
     'ssl-certs'        => nil,
     'ssl-verify'       => false,
     'to'               => nil,
-    'to-folder'        => 'INBOX',
+    'to-folder'        => nil, # actually INBOX; see validate()
     'to-pass'          => nil,
     'to-user'          => nil,
     'verbosity'        => 'info'
@@ -36,6 +36,7 @@ class Config
     end
 
     load_file(filename)
+    validate
   end
 
   def fetch(name)
@@ -64,6 +65,7 @@ class Config
     fetch(name)
   end
 
+  # Validates the config and resolves conflicting settings.
   def validate
     ['from', 'to'].each do |s|
       raise Error, "'#{s}' must be a valid IMAP URI (e.g. imap://example.com)" unless fetch(s) =~ IMAP::REGEX_URI
@@ -76,6 +78,22 @@ class Config
     if exclude_file
       raise Error, "exclude file not found: #{exclude_file}" unless File.file?(exclude_file)
       raise Error, "exclude file cannot be read: #{exclude_file}" unless File.readable?(exclude_file)
+    end
+
+    if @cached['all'] || @cached['all-subscribed']
+      # A specific source folder wins over 'all' and 'all-subscribed'
+      if @cached['from-folder']
+        @cached['all']              = false
+        @cached['all-subscribed']   = false
+        @cached['to-folder']      ||= @cached['from-folder']
+
+      elsif @cached['all'] && @cached['all-subscribed']
+        # 'all' wins over 'all-subscribed'
+        @cached['all-subscribed'] = false
+      end
+    else
+      @cached['from-folder'] ||= 'INBOX'
+      @cached['to-folder']   ||= 'INBOX'
     end
   end
 

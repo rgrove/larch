@@ -2,11 +2,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{larch}
-  s.version = "1.1.0.dev.20091106"
+  s.version = "1.1.0.dev.20091123"
 
   s.required_rubygems_version = Gem::Requirement.new("> 1.3.1") if s.respond_to? :required_rubygems_version=
   s.authors = ["Ryan Grove"]
-  s.date = %q{2009-11-06}
+  s.date = %q{2009-11-23}
   s.default_executable = %q{larch}
   s.email = %q{ryan@wonko.com}
   s.executables = ["larch"]
@@ -23,18 +23,18 @@ Gem::Specification.new do |s|
 
     if Gem::Version.new(Gem::RubyGemsVersion) >= Gem::Version.new('1.2.0') then
       s.add_runtime_dependency(%q<highline>, ["~> 1.5.0"])
-      s.add_runtime_dependency(%q<sequel>, ["~> 3.3.0"])
+      s.add_runtime_dependency(%q<sequel>, ["~> 3.6.0"])
       s.add_runtime_dependency(%q<sqlite3-ruby>, ["~> 1.2.5"])
       s.add_runtime_dependency(%q<trollop>, ["~> 1.13"])
     else
       s.add_dependency(%q<highline>, ["~> 1.5.0"])
-      s.add_dependency(%q<sequel>, ["~> 3.3.0"])
+      s.add_dependency(%q<sequel>, ["~> 3.6.0"])
       s.add_dependency(%q<sqlite3-ruby>, ["~> 1.2.5"])
       s.add_dependency(%q<trollop>, ["~> 1.13"])
     end
   else
     s.add_dependency(%q<highline>, ["~> 1.5.0"])
-    s.add_dependency(%q<sequel>, ["~> 3.3.0"])
+    s.add_dependency(%q<sequel>, ["~> 3.6.0"])
     s.add_dependency(%q<sqlite3-ruby>, ["~> 1.2.5"])
     s.add_dependency(%q<trollop>, ["~> 1.13"])
   end

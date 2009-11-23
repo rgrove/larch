@@ -69,7 +69,12 @@ module Larch
         next if excluded?(mailbox_from.name)
         next if subscribed_only && !mailbox_from.subscribed?
 
-        mailbox_to = imap_to.mailbox(mailbox_from.name, mailbox_from.delim)
+        if imap_to.uri_mailbox
+          mailbox_to = imap_to.mailbox(imap_to.uri_mailbox)
+        else
+          mailbox_to = imap_to.mailbox(mailbox_from.name, mailbox_from.delim)
+        end
+
         mailbox_to.subscribe if mailbox_from.subscribed?
 
         copy_messages(mailbox_from, mailbox_to)
