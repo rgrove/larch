@@ -256,7 +256,7 @@ class Mailbox
         debug "removing #{expected_uids.length} deleted messages from the database..."
 
         Larch.db.transaction do
-          expected_uids.each do |uid|
+          expected_uids.each_key do |uid|
             @db_mailbox.messages_dataset.filter(:uid => uid).destroy
           end
         end
