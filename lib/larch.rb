@@ -115,16 +115,18 @@ module Larch
     # Opens a connection to the Larch message database, creating it if
     # necessary.
     def open_db(database)
-      filename  = File.expand_path(database)
-      directory = File.dirname(filename)
+      unless database == ':memory:'
+        filename  = File.expand_path(database)
+        directory = File.dirname(filename)
 
-      unless File.exist?(directory)
-        FileUtils.mkdir_p(directory)
-        File.chmod(0700, directory)
+        unless File.exist?(directory)
+          FileUtils.mkdir_p(directory)
+          File.chmod(0700, directory)
+        end
       end
 
       begin
-        db = Sequel.connect("sqlite://#{filename}")
+        db = Sequel.sqlite(:database => filename)
         db.test_connection
       rescue => e
         @log.fatal "unable to open message database: #{e}"
