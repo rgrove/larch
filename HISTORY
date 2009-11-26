@@ -24,6 +24,9 @@ Version 1.1.0 (git)
   * Fixed incorrect case-sensitive treatment of the 'INBOX' folder name.
   * Fixed a bug in which Larch would try to copy flags that weren't supported on
     the destination server.
+  * Fixed an issue when trying to copy a folder name with leading or trailing
+    whitespace to Gmail, since Gmail doesn't allow whitespace around folder
+    names.
 
 Version 1.0.2 (2009-08-05)
   * Fixed a bug that caused Larch to try to set the read-only \Recent flag on

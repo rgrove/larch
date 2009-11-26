@@ -6,7 +6,7 @@ module Larch
 # required reading if you're doing anything with IMAP in Ruby:
 # http://sup.rubyforge.org
 class IMAP
-  attr_reader :conn, :db_account, :mailboxes, :options
+  attr_reader :conn, :db_account, :mailboxes, :options, :quirks
 
   # URI format validation regex.
   REGEX_URI = URI.regexp(['imap', 'imaps'])
@@ -57,6 +57,9 @@ class IMAP
     @conn      = nil
     @mailboxes = {}
     @mutex     = Mutex.new
+    @quirks    = {
+      :gmail => false
+    }
 
     @db_account = Database::Account.find_or_create(
       :hostname => host,
@@ -124,6 +127,9 @@ class IMAP
 
     name = name.gsub(delim, self.delim)
     name = 'INBOX' if name.downcase == 'inbox'
+
+    # Gmail doesn't allow folders with leading or trailing whitespace.
+    name.strip! if @quirks[:gmail]
 
     begin
       @mailboxes.fetch(name) do
@@ -231,6 +237,19 @@ class IMAP
 
   private
 
+  # Tries to identify server implementations with certain quirks that we'll need
+  # to work around.
+  def check_quirks
+    return unless @conn &&
+        @conn.greeting.kind_of?(Net::IMAP::UntaggedResponse) &&
+        @conn.greeting.data.kind_of?(Net::IMAP::ResponseText)
+
+    if @conn.greeting.data.text =~ /^Gimap ready/
+      @quirks[:gmail] = true
+      debug "looks like Gmail"
+    end
+  end
+
   # Resets the connection and mailbox state.
   def reset
     @mutex.synchronize do
@@ -281,6 +300,8 @@ class IMAP
             @options[:ssl_verify])
 
         info "connected on port #{port}" << (ssl? ? ' using SSL' : '')
+
+        check_quirks
 
         auth_methods = ['PLAIN']
         tried        = []
