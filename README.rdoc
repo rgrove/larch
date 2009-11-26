@@ -22,7 +22,7 @@ Latest stable release:
 
 Latest development version:
 
-  gem install larch -s http://gemcutter.org --prerelease
+  gem install larch --pre
 
 == Usage
 
