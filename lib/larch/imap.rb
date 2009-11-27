@@ -56,7 +56,6 @@ class IMAP
 
     @conn      = nil
     @mailboxes = {}
-    @mutex     = Mutex.new
     @quirks    = {
       :gmail => false
     }
@@ -252,10 +251,8 @@ class IMAP
 
   # Resets the connection and mailbox state.
   def reset
-    @mutex.synchronize do
-      @conn = nil
-      @mailboxes.each_value {|mb| mb.reset }
-    end
+    @conn = nil
+    @mailboxes.each_value {|mb| mb.reset }
   end
 
   def safe_connect
@@ -343,18 +340,16 @@ class IMAP
     all        = safely { @conn.list('', '*') } || []
     subscribed = safely { @conn.lsub('', '*') } || []
 
-    @mutex.synchronize do
-      # Remove cached mailboxes that no longer exist.
-      @mailboxes.delete_if {|k, v| !all.any?{|mb| Net::IMAP.decode_utf7(mb.name) == k}}
+    # Remove cached mailboxes that no longer exist.
+    @mailboxes.delete_if {|k, v| !all.any?{|mb| Net::IMAP.decode_utf7(mb.name) == k}}
 
-      # Update cached mailboxes.
-      all.each do |mb|
-        name = Net::IMAP.decode_utf7(mb.name)
-        name = 'INBOX' if name.downcase == 'inbox'
+    # Update cached mailboxes.
+    all.each do |mb|
+      name = Net::IMAP.decode_utf7(mb.name)
+      name = 'INBOX' if name.downcase == 'inbox'
 
-        @mailboxes[name] ||= Mailbox.new(self, name, mb.delim,
-            subscribed.any?{|s| s.name == mb.name}, mb.attr)
-      end
+      @mailboxes[name] ||= Mailbox.new(self, name, mb.delim,
+          subscribed.any?{|s| s.name == mb.name}, mb.attr)
     end
 
     # Remove mailboxes that no longer exist from the database.

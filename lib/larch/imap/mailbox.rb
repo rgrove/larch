@@ -16,17 +16,15 @@ class Mailbox
   def initialize(imap, name, delim, subscribed, *attr)
     raise ArgumentError, "must provide a Larch::IMAP instance" unless imap.is_a?(Larch::IMAP)
 
-    @imap       = imap
-    @name       = name
-    @name_utf7  = Net::IMAP.encode_utf7(@name)
+    @attr       = attr.flatten
     @delim      = delim
     @flags      = []
+    @imap       = imap
+    @last_scan  = nil
+    @name       = name
+    @name_utf7  = Net::IMAP.encode_utf7(@name)
     @perm_flags = []
     @subscribed = subscribed
-    @attr       = attr.flatten
-
-    @last_scan = nil
-    @mutex     = Mutex.new
 
     # Valid mailbox states are :closed (no mailbox open), :examined (mailbox
     # open and read-only), or :selected (mailbox open and read-write).
@@ -167,14 +165,15 @@ class Mailbox
 
   # Resets the mailbox state.
   def reset
-    @mutex.synchronize { @state = :closed }
+    @state = :closed
   end
 
   # Fetches message headers from this mailbox.
   def scan
-    return if @last_scan && (Time.now - @last_scan) < SCAN_INTERVAL
+    now = Time.now.to_i
+    return if @last_scan && (now - @last_scan) < SCAN_INTERVAL
     first_scan = @last_scan.nil?
-    @mutex.synchronize { @last_scan = Time.now }
+    @last_scan = now
 
     # Compare the mailbox's current status with its last known status.
     begin
@@ -330,7 +329,7 @@ class Mailbox
     return false if subscribed? && !force
 
     @imap.safely { @imap.conn.subscribe(@name_utf7) } unless @imap.options[:dry_run]
-    @mutex.synchronize { @subscribed = true }
+    @subscribed = true
     @db_mailbox.update(:subscribed => 1)
 
     true
@@ -346,7 +345,7 @@ class Mailbox
     return false unless subscribed? || force
 
     @imap.safely { @imap.conn.unsubscribe(@name_utf7) } unless @imap.options[:dry_run]
-    @mutex.synchronize { @subscribed = false }
+    @subscribed = false
     @db_mailbox.update(:subscribed => 0)
 
     true
@@ -398,13 +397,13 @@ class Mailbox
 
     @imap.safely do
       begin
-        @mutex.synchronize { @state = :closed }
+        @state = :closed
 
         debug "examining mailbox"
         @imap.conn.examine(@name_utf7)
         refresh_flags
 
-        @mutex.synchronize { @state = :examined }
+        @state = :examined
 
       rescue Net::IMAP::NoResponseError => e
         raise Error, "unable to examine mailbox: #{e.message}"
@@ -426,13 +425,13 @@ class Mailbox
 
     @imap.safely do
       begin
-        @mutex.synchronize { @state = :closed }
+        @state = :closed
 
         debug "selecting mailbox"
         @imap.conn.select(@name_utf7)
         refresh_flags
 
-        @mutex.synchronize { @state = :selected }
+        @state = :selected
 
       rescue Net::IMAP::NoResponseError => e
         raise Error, "unable to select mailbox: #{e.message}" unless create
