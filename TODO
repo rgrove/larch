@@ -1,6 +1,0 @@
-Larch Todo
-
-* Option to delete messages from source after syncing, or if they already exist
-  on the destination
-* "Always on" mode that syncs messages instantly as they arrive in the source
-  mailbox
