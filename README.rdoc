@@ -213,8 +213,47 @@ servers:
 The following servers do not work well with Larch:
 
 * BlitzMail - Buggy server implementation; fails to properly quote or escape
-  some IMAP responses, which can cause Larch to hang waiting for a terminating
-  character that will never arrive.
+  some IMAP responses, which can cause Net::IMAP to hang waiting for a
+  terminating character that will never arrive.
+
+=== Gmail Quirks
+
+Gmail's IMAP implementation is quirky. Larch does its best to work around these
+quirks whenever possible, but here are a few things to watch out for:
+
+==== "Some messages could not be FETCHed" error
+
+This error indicates that a message on Gmail is corrupt, and Gmail itself is
+unable to read it. The message will continue to show up in the mailbox, but all
+attempts to access it via IMAP, POP, or the Gmail web interface will result in
+errors. Larch will try to skip these messages and continue processing others
+if possible.
+
+It's not clear how this corruption occurs or exactly what kind of corruption
+causes these errors, although in every case I'm aware of, the corrupt message
+has originated outside of Gmail (Gmail itself does not corrupt the message).
+There is currently no known solution for this problem apart from deleting the
+corrupted messages.
+
+==== Maximum folder name length of 40 characters
+
+Folders in Gmail IMAP are really just labels, and a nested folder hierarchy like
+"Foo\Bar\Baz" is actually just a single label with "\" characters in it. Since
+Gmail limits label names to 40 characters, it's impossible to create a nested
+folder hierarchy with a combined name length of more than 40 characters
+including delimiters.
+
+If you try to copy a too-long folder hierarchy to Gmail using Larch, Gmail will
+return a "Folder name is not allowed" error. To work around this, reorganize
+your mail into a shallower hierarchy on the source server to avoid hitting the
+folder name length limit.
+
+==== Folder names cannot contain leading or trailing whitespace
+
+Most IMAP servers allow folder names to contain leading and trailing whitespace,
+such as "  folder  ". Gmail does not. When copying folders to Gmail, Larch will
+automatically remove leading and trailing whitespace in folder names to prevent
+errors.
 
 == Known Issues
 
@@ -223,10 +262,14 @@ The following servers do not work well with Larch:
   cause a deadlock to occur if a connection drops unexpectedly (either due to
   network issues or because the server closed the connection without warning)
   when the server has already begun sending a response and Net::IMAP is
-  waiting to receive more data.
+  waiting to receive more data. If this happens, Net::IMAP will continue waiting
+  forever without passing control back to Larch, and you will need to manually
+  kill and restart Larch.
 
-  If this happens, Net::IMAP will continue waiting forever without passing
-  control back to Larch, and you will need to manually kill and restart Larch.
+  Net::IMAP in Ruby 1.8 has also been known to hang when it can't parse a server
+  response, either because the response itself is malformed or because of a
+  bug in Net::IMAP's parser. This is rare, but it happens. Unfortunately there's
+  nothing Larch can do about this.
 
 * The Ruby package on Debian, Ubuntu, and some other Debian-based Linux
   distributions doesn't include the OpenSSL standard library. If you see an
@@ -240,6 +283,9 @@ The following servers do not work well with Larch:
 The Larch mailing list is the best place for questions, comments, and discussion
 about Larch. You can join the list or view the archives at
 http://groups.google.com/group/larch
+
+First-time senders to the list are moderated to prevent spam, so there may be a
+delay before your first message shows up.
 
 == Credit
 
