@@ -50,6 +50,8 @@ class Mailbox
     # Create private convenience methods (debug, info, warn, etc.) to make
     # logging easier.
     Logger::LEVELS.each_key do |level|
+      next if Mailbox.private_method_defined?(level)
+
       Mailbox.class_eval do
         define_method(level) do |msg|
           Larch.log.log(level, "#{@imap.username}@#{@imap.host}: #{@name}: #{msg}")
