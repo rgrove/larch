@@ -1,7 +1,3 @@
-# Prepend this file's directory to the include path if it's not there already.
-$:.unshift(File.dirname(File.expand_path(__FILE__)))
-$:.uniq!
-
 require 'cgi'
 require 'digest/md5'
 require 'fileutils'
@@ -23,7 +19,7 @@ require 'larch/version'
 module Larch
 
   class << self
-    attr_reader :config, :db, :log, :exclude
+    attr_reader :config, :db, :exclude, :log
 
     EXCLUDE_COMMENT = /#.*$/
     EXCLUDE_REGEX   = /^\s*\/(.*)\/\s*/
@@ -37,15 +33,7 @@ module Larch
       @log    = Logger.new(@config[:verbosity])
       @db     = open_db(@config[:database])
 
-      @exclude = @config[:exclude].map do |e|
-        if e =~ EXCLUDE_REGEX
-          Regexp.new($1, Regexp::IGNORECASE)
-        else
-          glob_to_regex(e.strip)
-        end
-      end
-
-      load_exclude_file(@config[:exclude_file]) if @config[:exclude_file]
+      parse_exclusions
 
       Net::IMAP.debug = true if @log.level == :insane
 
@@ -256,6 +244,17 @@ module Larch
       raise Larch::IMAP::FatalError, "error in exclude file at line #{lineno}: #{e}"
     end
 
+    def parse_exclusions
+      @exclude = @config[:exclude].map do |e|
+        if e =~ EXCLUDE_REGEX
+          Regexp.new($1, Regexp::IGNORECASE)
+        else
+          glob_to_regex(e.strip)
+        end
+      end
+
+      load_exclude_file(@config[:exclude_file]) if @config[:exclude_file]
+    end
   end
 
 end
