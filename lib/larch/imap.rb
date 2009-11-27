@@ -185,7 +185,7 @@ class IMAP
 
       raise unless (retries += 1) <= @options[:max_retries]
 
-      info "#{e.class.name}: #{e.message} (reconnecting)"
+      warn "#{e.class.name}: #{e.message} (reconnecting)"
 
       reset
       sleep 1 * retries
@@ -198,7 +198,7 @@ class IMAP
 
       raise unless (retries += 1) <= @options[:max_retries]
 
-      info "#{e.class.name}: #{e.message} (will retry)"
+      warn "#{e.class.name}: #{e.message} (will retry)"
 
       sleep 1 * retries
       retry
@@ -277,7 +277,7 @@ class IMAP
       # verification errors.
       raise if e.is_a?(OpenSSL::SSL::SSLError) && e.message =~ /certificate verify failed/
 
-      info "#{e.class.name}: #{e.message} (will retry)"
+      warn "#{e.class.name}: #{e.message} (will retry)"
 
       reset
       sleep 1 * retries
@@ -289,7 +289,7 @@ class IMAP
   end
 
   def unsafe_connect
-    info "connecting..."
+    debug "connecting..."
 
     exception = nil
 
@@ -322,7 +322,7 @@ class IMAP
             @conn.authenticate(method, username, password)
           end
 
-          info "authenticated using #{method}"
+          debug "authenticated using #{method}"
 
         rescue Net::IMAP::BadResponseError, Net::IMAP::NoResponseError => e
           debug "#{method} auth failed: #{e.message}"

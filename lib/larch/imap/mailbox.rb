@@ -82,7 +82,7 @@ class Mailbox
         next true if flag == :Recent
 
         unless @flags.include?(flag) || @perm_flags.include?(:*) || @perm_flags.include?(flag)
-          debug "flag not supported on destination: #{flag}"
+          info "flag not supported on destination: #{flag}"
           true
         end
       end
@@ -314,7 +314,8 @@ class Mailbox
       rescue => e
         # Set this mailbox's uidnext value to the last known good UID that was
         # stored in the database, plus 1. This will allow Larch to resume where
-        # the error occurred on the next attempt rather than having to start over.
+        # the error occurred on the next attempt rather than having to start
+        # over.
         @db_mailbox.update(:uidnext => last_good_uid + 1) if last_good_uid
         raise
       end
