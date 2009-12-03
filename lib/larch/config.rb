@@ -95,6 +95,8 @@ class Config
       @cached['from-folder'] ||= 'INBOX'
       @cached['to-folder']   ||= 'INBOX'
     end
+
+    @cached['exclude'].flatten!
   end
 
   private
