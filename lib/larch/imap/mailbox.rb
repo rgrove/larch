@@ -223,7 +223,7 @@ class Mailbox
 
       # Load the expected UIDs and their flags into a Hash for quicker lookups.
       expected_uids = {}
-      @db_mailbox.messages_dataset.each do |db_message|
+      @db_mailbox.messages_dataset.all do |db_message|
         expected_uids[db_message.uid] = db_message.flags.split(',').map{|f| f.to_sym }
       end
 
