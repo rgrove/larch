@@ -277,48 +277,44 @@ class Mailbox
 
       info "fetching message headers #{start} through #{total}..."
 
-      begin
-        last_good_uid = nil
+      last_good_uid = nil
 
-        imap_uid_fetch(full_range, "(UID BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)] RFC822.SIZE INTERNALDATE FLAGS)") do |fetch_data|
-          check_response_fields(fetch_data, 'UID', 'RFC822.SIZE', 'INTERNALDATE', 'FLAGS')
+      imap_uid_fetch(full_range, "(UID BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)] RFC822.SIZE INTERNALDATE FLAGS)") do |fetch_data|
+        # Check the fields in the first response to ensure that everything we
+        # asked for is there.
+        check_response_fields(fetch_data, 'UID', 'RFC822.SIZE', 'INTERNALDATE', 'FLAGS')
 
-          Larch.db.transaction do
-            fetch_data.each do |data|
-              uid = data.attr['UID']
+        Larch.db.transaction do
+          fetch_data.each do |data|
+            uid = data.attr['UID']
 
-              Database::Message.create(
-                :mailbox_id   => @db_mailbox.id,
-                :guid         => create_guid(data),
-                :uid          => uid,
-                :message_id   => parse_message_id(data.attr['BODY[HEADER.FIELDS (MESSAGE-ID)]']),
-                :rfc822_size  => data.attr['RFC822.SIZE'].to_i,
-                :internaldate => Time.parse(data.attr['INTERNALDATE']).to_i,
-                :flags        => data.attr['FLAGS'].map{|f| f.to_s }.join(',')
-              )
+            Database::Message.create(
+              :mailbox_id   => @db_mailbox.id,
+              :guid         => create_guid(data),
+              :uid          => uid,
+              :message_id   => parse_message_id(data.attr['BODY[HEADER.FIELDS (MESSAGE-ID)]']),
+              :rfc822_size  => data.attr['RFC822.SIZE'].to_i,
+              :internaldate => Time.parse(data.attr['INTERNALDATE']).to_i,
+              :flags        => data.attr['FLAGS'].map{|f| f.to_s }.join(',')
+            )
 
-              last_good_uid = uid
-            end
-
-            @db_mailbox.update(:uidnext => last_good_uid + 1)
+            last_good_uid = uid
           end
 
-          if show_progress
-            fetched       += fetch_data.length
-            last_progress  = progress
-            progress       = ((100 / (total - start).to_f) * fetched).round
-
-            info "#{progress}% complete" if progress > last_progress
-          end
+          # Set this mailbox's uidnext value to the last known good UID that
+          # was stored in the database, plus 1. This will allow Larch to
+          # resume where the error occurred on the next attempt rather than
+          # having to start over.
+          @db_mailbox.update(:uidnext => last_good_uid + 1)
         end
 
-      rescue => e
-        # Set this mailbox's uidnext value to the last known good UID that was
-        # stored in the database, plus 1. This will allow Larch to resume where
-        # the error occurred on the next attempt rather than having to start
-        # over.
-        @db_mailbox.update(:uidnext => last_good_uid + 1) if last_good_uid
-        raise
+        if show_progress
+          fetched       += fetch_data.length
+          last_progress  = progress
+          progress       = ((100 / (total - start).to_f) * fetched).round
+
+          info "#{progress}% complete" if progress > last_progress
+        end
       end
     end
 
