@@ -73,6 +73,7 @@ module Larch
 
     ensure
       summary
+      db_maintenance
     end
 
     # Copies the messages in a single IMAP folder and all its subfolders
@@ -98,6 +99,7 @@ module Larch
 
     ensure
       summary
+      db_maintenance
     end
 
     # Opens a connection to the Larch message database, creating it if
@@ -145,7 +147,9 @@ module Larch
       @log.info "#{@copied} message(s) copied, #{@failed} failed, #{@total - @copied - @failed} untouched out of #{@total} total"
     end
 
+
     private
+
 
     def copy_mailbox(mailbox_from, mailbox_to)
       raise ArgumentError, "mailbox_from must be a Larch::IMAP::Mailbox instance" unless mailbox_from.is_a?(Larch::IMAP::Mailbox)
@@ -200,6 +204,17 @@ module Larch
           next
         end
       end
+    end
+
+    def db_maintenance
+      @log.debug 'performing database maintenance'
+
+      # Remove accounts that haven't been used in over 30 days.
+      Database::Account.filter(:updated_at => nil).destroy
+      Database::Account.filter('? - updated_at >= 2592000', Time.now.to_i).destroy
+
+      # Release unused disk space and defragment the database.
+      @db.run('VACUUM')
     end
 
     def excluded?(name)

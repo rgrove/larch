@@ -65,6 +65,8 @@ class IMAP
       :username => username
     )
 
+    @db_account.touch
+
     # Create private convenience methods (debug, info, warn, etc.) to make
     # logging easier.
     Logger::LEVELS.each_key do |level|
