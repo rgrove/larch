@@ -174,6 +174,7 @@ class Mailbox
   def scan
     now = Time.now.to_i
     return if @last_scan && (now - @last_scan) < SCAN_INTERVAL
+
     first_scan = @last_scan.nil?
     @last_scan = now
 
@@ -212,110 +213,15 @@ class Mailbox
     end
 
     @db_mailbox.update(:uidvalidity => status['UIDVALIDITY'])
-
     return unless flag_range || full_range.last - full_range.first > 0
 
-    # Open the mailbox for read-only access.
-    return unless imap_examine
-
-    if flag_range && flag_range.last - flag_range.first > 0
-      info "fetching latest message flags..."
-
-      # Load the expected UIDs and their flags into a Hash for quicker lookups.
-      expected_uids = {}
-      @db_mailbox.messages_dataset.all do |db_message|
-        expected_uids[db_message.uid] = db_message.flags.split(',').map{|f| f.to_sym }
-      end
-
-      imap_uid_fetch(flag_range, "(UID FLAGS)", 16384) do |fetch_data|
-        # Check the fields in the first response to ensure that everything we
-        # asked for is there.
-        check_response_fields(fetch_data.first, 'UID', 'FLAGS') unless fetch_data.empty?
-
-        Larch.db.transaction do
-          fetch_data.each do |data|
-            uid         = data.attr['UID']
-            flags       = data.attr['FLAGS']
-            local_flags = expected_uids[uid]
-
-            # If we haven't seen this message before, or if its flags have
-            # changed, update the database.
-            unless local_flags && local_flags == flags
-              @db_mailbox.messages_dataset.filter(:uid => uid).update(
-                  :flags => flags.map{|f| f.to_s }.join(','))
-            end
-
-            expected_uids.delete(uid)
-          end
-        end
-      end
-
-      # Any UIDs that are in the database but weren't in the response have been
-      # deleted from the server, so we need to delete them from the database as
-      # well.
-      unless expected_uids.empty?
-        debug "removing #{expected_uids.length} deleted messages from the database..."
-
-        Larch.db.transaction do
-          expected_uids.each_key do |uid|
-            @db_mailbox.messages_dataset.filter(:uid => uid).destroy
-          end
-        end
-      end
-
-      expected_uids = nil
-      fetch_data    = nil
-    end
+    fetch_flags(flag_range) if flag_range && flag_range.last - flag_range.first > 0
 
     if full_range && full_range.last - full_range.first > 0
-      start    = @db_mailbox.messages_dataset.count + 1
-      total    = status['MESSAGES']
-      fetched  = 0
-      progress = 0
-
-      show_progress = total - start > FETCH_BLOCK_SIZE * 4
-
-      info "fetching message headers #{start} through #{total}..."
-
-      last_good_uid = nil
-
-      imap_uid_fetch(full_range, "(UID BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)] RFC822.SIZE INTERNALDATE FLAGS)") do |fetch_data|
-        # Check the fields in the first response to ensure that everything we
-        # asked for is there.
-        check_response_fields(fetch_data, 'UID', 'RFC822.SIZE', 'INTERNALDATE', 'FLAGS')
-
-        Larch.db.transaction do
-          fetch_data.each do |data|
-            uid = data.attr['UID']
-
-            Database::Message.create(
-              :mailbox_id   => @db_mailbox.id,
-              :guid         => create_guid(data),
-              :uid          => uid,
-              :message_id   => parse_message_id(data.attr['BODY[HEADER.FIELDS (MESSAGE-ID)]']),
-              :rfc822_size  => data.attr['RFC822.SIZE'].to_i,
-              :internaldate => Time.parse(data.attr['INTERNALDATE']).to_i,
-              :flags        => data.attr['FLAGS'].map{|f| f.to_s }.join(',')
-            )
-
-            last_good_uid = uid
-          end
-
-          # Set this mailbox's uidnext value to the last known good UID that
-          # was stored in the database, plus 1. This will allow Larch to
-          # resume where the error occurred on the next attempt rather than
-          # having to start over.
-          @db_mailbox.update(:uidnext => last_good_uid + 1)
-        end
-
-        if show_progress
-          fetched       += fetch_data.length
-          last_progress  = progress
-          progress       = ((100 / (total - start).to_f) * fetched).round
-
-          info "#{progress}% complete" if progress > last_progress
-        end
-      end
+      fetch_headers(full_range, {
+        :progress_start => @db_mailbox.messages_dataset.count + 1,
+        :progress_total => status['MESSAGES']
+      })
     end
 
     @db_mailbox.update(:uidnext => status['UIDNEXT'])
@@ -380,6 +286,116 @@ class Mailbox
 
       Digest::MD5.hexdigest(sprintf('%d%d', data.attr['RFC822.SIZE'],
           Time.parse(data.attr['INTERNALDATE']).to_i))
+    end
+  end
+
+  # Fetches the latest flags from the server for the specified range of message
+  # UIDs.
+  def fetch_flags(flag_range)
+    return unless imap_examine
+
+    info "fetching latest message flags..."
+
+    # Load the expected UIDs and their flags into a Hash for quicker lookups.
+    expected_uids = {}
+    @db_mailbox.messages_dataset.all do |db_message|
+      expected_uids[db_message.uid] = db_message.flags.split(',').map{|f| f.to_sym }
+    end
+
+    imap_uid_fetch(flag_range, "(UID FLAGS)", 16384) do |fetch_data|
+      # Check the fields in the first response to ensure that everything we
+      # asked for is there.
+      check_response_fields(fetch_data.first, 'UID', 'FLAGS') unless fetch_data.empty?
+
+      Larch.db.transaction do
+        fetch_data.each do |data|
+          uid         = data.attr['UID']
+          flags       = data.attr['FLAGS']
+          local_flags = expected_uids[uid]
+
+          # If we haven't seen this message before, or if its flags have
+          # changed, update the database.
+          unless local_flags && local_flags == flags
+            @db_mailbox.messages_dataset.filter(:uid => uid).update(
+                :flags => flags.map{|f| f.to_s }.join(','))
+          end
+
+          expected_uids.delete(uid)
+        end
+      end
+    end
+
+    # Any UIDs that are in the database but weren't in the response have been
+    # deleted from the server, so we need to delete them from the database as
+    # well.
+    unless expected_uids.empty?
+      debug "removing #{expected_uids.length} deleted messages from the database..."
+
+      Larch.db.transaction do
+        expected_uids.each_key do |uid|
+          @db_mailbox.messages_dataset.filter(:uid => uid).destroy
+        end
+      end
+    end
+
+    expected_uids = nil
+    fetch_data    = nil
+  end
+
+  # Fetches the latest headers from the server for the specified range of
+  # message UIDs.
+  def fetch_headers(header_range, options = {})
+    return unless imap_examine
+
+    options = {
+      :progress_start => 0,
+      :progress_total => 0
+    }.merge(options)
+
+    fetched       = 0
+    progress      = 0
+    show_progress = options[:progress_total] - options[:progress_start] > FETCH_BLOCK_SIZE * 4
+
+    info "fetching message headers #{options[:progress_start]} through #{options[:progress_total]}..."
+
+    last_good_uid = nil
+
+    imap_uid_fetch(header_range, "(UID BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)] RFC822.SIZE INTERNALDATE FLAGS)") do |fetch_data|
+      # Check the fields in the first response to ensure that everything we
+      # asked for is there.
+      check_response_fields(fetch_data, 'UID', 'RFC822.SIZE', 'INTERNALDATE', 'FLAGS')
+
+      Larch.db.transaction do
+        fetch_data.each do |data|
+          uid = data.attr['UID']
+
+          Database::Message.create(
+            :mailbox_id   => @db_mailbox.id,
+            :guid         => create_guid(data),
+            :uid          => uid,
+            :message_id   => parse_message_id(data.attr['BODY[HEADER.FIELDS (MESSAGE-ID)]']),
+            :rfc822_size  => data.attr['RFC822.SIZE'].to_i,
+            :internaldate => Time.parse(data.attr['INTERNALDATE']).to_i,
+            :flags        => data.attr['FLAGS'].map{|f| f.to_s }.join(',')
+          )
+
+          last_good_uid = uid
+        end
+
+        # Set this mailbox's uidnext value to the last known good UID that
+        # was stored in the database, plus 1. This will allow Larch to
+        # resume where the error occurred on the next attempt rather than
+        # having to start over.
+        @db_mailbox.update(:uidnext => last_good_uid + 1)
+      end
+
+      if show_progress
+        fetched       += fetch_data.length
+        last_progress  = progress
+        progress       = ((100 / (options[:progress_total] - options[:progress_start]).to_f) * fetched).round
+
+        info "#{progress}% complete" if progress > last_progress
+      end
     end
   end
 
