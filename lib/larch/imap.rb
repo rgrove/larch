@@ -136,8 +136,8 @@ class IMAP
   def mailbox(name, delim = '/')
     retries = 0
 
-    name = name.gsub(delim, self.delim)
-    name = 'INBOX' if name.downcase == 'inbox'
+    name.gsub!(/^(inbox\/?)/i){ $1.upcase }
+    name.gsub!(delim, self.delim)
 
     # Gmail doesn't allow folders with leading or trailing whitespace.
     name.strip! if @quirks[:gmail]
@@ -349,6 +349,8 @@ class IMAP
   end
 
   def update_mailboxes
+    debug "updating mailboxes"
+
     all        = safely { @conn.list('', '*') } || []
     subscribed = safely { @conn.lsub('', '*') } || []
 
@@ -365,7 +367,7 @@ class IMAP
     end
 
     # Remove mailboxes that no longer exist from the database.
-    @db_account.mailboxes.each do |db_mailbox|
+    @db_account.mailboxes_dataset.all do |db_mailbox|
       db_mailbox.destroy unless @mailboxes.has_key?(db_mailbox.name)
     end
   end
