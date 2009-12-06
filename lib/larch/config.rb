@@ -19,6 +19,7 @@ class Config
     'no-create-folder' => false,
     'ssl-certs'        => nil,
     'ssl-verify'       => false,
+    'sync-flags'       => false,
     'to'               => nil,
     'to-folder'        => nil, # actually INBOX; see validate()
     'to-pass'          => nil,

@@ -180,8 +180,28 @@ module Larch
 
       @total += mailbox_from.length
 
-      mailbox_from.each_guid do |guid|
-        next if mailbox_to.has_guid?(guid)
+      mailbox_from.each_db_message do |from_db_message|
+        guid = from_db_message.guid
+
+        if mailbox_to.has_guid?(guid)
+          next unless @config['sync_flags']
+
+          begin
+            to_db_message = mailbox_to.fetch_db_message(guid)
+
+            if to_db_message.flags != from_db_message.flags
+              new_flags = from_db_message.flags_str
+              new_flags = '(none)' if new_flags.empty?
+
+              @log.info "syncing flags: UID #{to_db_message.uid}: #{new_flags}"
+              mailbox_to.set_flags(guid, from_db_message.flags)
+            end
+          rescue Larch::IMAP::Error => e
+            @log.error e.message
+          end
+
+          next
+        end
 
         begin
           next unless msg = mailbox_from.peek(guid)

@@ -120,7 +120,7 @@ class Mailbox
   def fetch(guid, peek = false)
     scan
 
-    unless db_message = @db_mailbox.messages_dataset.filter(:guid => guid).first
+    unless db_message = fetch_db_message(guid)
       warn "message not found in local db: #{guid}"
       return nil
     end
@@ -139,6 +139,14 @@ class Mailbox
     return nil
   end
   alias [] fetch
+
+  # Returns a Larch::Database::Message object representing the message with the
+  # specified Larch _guid_, or +nil+ if the specified guide was not found in
+  # this mailbox. 
+  def fetch_db_message(guid)
+    scan
+    @db_mailbox.messages_dataset.filter(:guid => guid).first
+  end
 
   # Returns +true+ if a message with the specified Larch guid exists in this
   # mailbox, +false+ otherwise.
@@ -234,6 +242,20 @@ class Mailbox
     return
   end
 
+  # Sets the IMAP flags for the message specified by _guid_, replacing any
+  # existing flags (except <code>:Recent</code>). _flags_ should be an array of
+  # symbols. Returns +true+ on success, +false+ on failure.
+  def set_flags(guid, flags)
+    raise ArgumentError, "flags must be an Array" unless flags.is_a?(Array)
+
+    db_message = fetch_db_message(guid)
+    return false if db_message.nil? || !imap_select
+
+    @imap.safely { @imap.conn.uid_store(db_message.uid, 'FLAGS.SILENT', flags) } unless @imap.options[:dry_run]
+
+    true
+  end
+
   # Subscribes to this mailbox.
   def subscribe(force = false)
     return false if subscribed? && !force
@@ -305,7 +327,7 @@ class Mailbox
     # Load the expected UIDs and their flags into a Hash for quicker lookups.
     expected_uids = {}
     @db_mailbox.messages_dataset.all do |db_message|
-      expected_uids[db_message.uid] = db_message.flags.split(',').map{|f| f.to_sym }
+      expected_uids[db_message.uid] = db_message.flags
     end
 
     imap_uid_fetch(flag_range, "(UID FLAGS)", 16384) do |fetch_data|
@@ -322,8 +344,7 @@ class Mailbox
           # If we haven't seen this message before, or if its flags have
           # changed, update the database.
           unless local_flags && local_flags == flags
-            @db_mailbox.messages_dataset.filter(:uid => uid).update(
-                :flags => flags.map{|f| f.to_s }.join(','))
+            @db_mailbox.messages_dataset.filter(:uid => uid).update(:flags => flags.map{|f| f.to_s }.join(','))
           end
 
           expected_uids.delete(uid)
@@ -382,7 +403,7 @@ class Mailbox
             :message_id   => parse_message_id(data.attr['BODY[HEADER.FIELDS (MESSAGE-ID)]']),
             :rfc822_size  => data.attr['RFC822.SIZE'].to_i,
             :internaldate => Time.parse(data.attr['INTERNALDATE']).to_i,
-            :flags        => data.attr['FLAGS'].map{|f| f.to_s }.join(',')
+            :flags        => data.attr['FLAGS']
           )
 
           last_good_uid = uid

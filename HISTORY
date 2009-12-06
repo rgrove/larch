@@ -15,6 +15,9 @@ Version 1.1.0 (git)
   * Folders are now copied recursively by default.
   * Progress information is now displayed regularly while scanning large
     mailboxes.
+  * Added --sync-flags option to synchronize message flags (like Seen, Flagged,
+    etc.) from the source server to the destination server for messages that
+    already exist on the destination.
   * Added short versions of common command-line options.
   * The --fast-scan option has been removed.
   * The --to-folder option can now be used in conjunction with --all or

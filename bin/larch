@@ -20,11 +20,11 @@ Usage:
 
 Server Options:
 EOS
-    opt :from,        "URI of the source IMAP server.", :short => '-f', :type => :string
+    opt :from,        "URI of the source IMAP server", :short => '-f', :type => :string
     opt :from_folder, "Source folder to copy from (default: INBOX)", :short => '-F', :default => Config::DEFAULT['from-folder'], :type => :string
     opt :from_pass,   "Source server password (default: prompt)", :short => '-p', :type => :string
     opt :from_user,   "Source server username (default: prompt)", :short => '-u', :type => :string
-    opt :to,          "URI of the destination IMAP server.", :short => '-t', :type => :string
+    opt :to,          "URI of the destination IMAP server", :short => '-t', :type => :string
     opt :to_folder,   "Destination folder to copy to (default: INBOX)", :short => '-T', :default => Config::DEFAULT['to-folder'], :type => :string
     opt :to_pass,     "Destination server password (default: prompt)", :short => '-P', :type => :string
     opt :to_user,     "Destination server username (default: prompt)", :short => '-U', :type => :string
@@ -34,6 +34,7 @@ EOS
     opt :all_subscribed,   "Copy all subscribed folders recursively", :short => '-s'
     opt :exclude,          "List of mailbox names/patterns that shouldn't be copied", :short => :none, :type => :strings, :multi => true
     opt :exclude_file,     "Filename containing mailbox names/patterns that shouldn't be copied", :short => :none, :type => :string
+    opt :sync_flags,       "Sync message flags from the source to the destination for messages that already exist at the destination", :short => '-S'
 
     text "\nGeneral Options:"
     opt :config,           "Specify a non-default config file to use", :short => '-c', :default => Config::DEFAULT['config']

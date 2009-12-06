@@ -28,42 +28,45 @@ Latest development version:
 
   larch [config section] [options]
   larch --from <uri> --to <uri> [options]
-
+  
   Server Options:
-         --from, -f <s>:   URI of the source IMAP server.
-  --from-folder, -F <s>:   Source folder to copy from (default: INBOX)
-    --from-pass, -p <s>:   Source server password (default: prompt)
-    --from-user, -u <s>:   Source server username (default: prompt)
-           --to, -t <s>:   URI of the destination IMAP server.
-    --to-folder, -T <s>:   Destination folder to copy to (default: INBOX)
-      --to-pass, -P <s>:   Destination server password (default: prompt)
-      --to-user, -U <s>:   Destination server username (default: prompt)
+           --from, -f <s>:   URI of the source IMAP server
+    --from-folder, -F <s>:   Source folder to copy from (default: INBOX)
+      --from-pass, -p <s>:   Source server password (default: prompt)
+      --from-user, -u <s>:   Source server username (default: prompt)
+             --to, -t <s>:   URI of the destination IMAP server
+      --to-folder, -T <s>:   Destination folder to copy to (default: INBOX)
+        --to-pass, -P <s>:   Destination server password (default: prompt)
+        --to-user, -U <s>:   Destination server username (default: prompt)
 
   Sync Options:
-              --all, -a:   Copy all folders recursively
-   --all-subscribed, -s:   Copy all subscribed folders recursively
-         --exclude <s+>:   List of mailbox names/patterns that shouldn't be
-                           copied
-     --exclude-file <s>:   Filename containing mailbox names/patterns that
-                           shouldn't be copied
+                --all, -a:   Copy all folders recursively
+     --all-subscribed, -s:   Copy all subscribed folders recursively
+           --exclude <s+>:   List of mailbox names/patterns that shouldn't be
+                             copied
+       --exclude-file <s>:   Filename containing mailbox names/patterns that
+                             shouldn't be copied
+         --sync-flags, -S:   Sync message flags from the source to the
+                             destination for messages that already exist at the
+                             destination
 
   General Options:
-       --config, -c <s>:   Specify a non-default config file to use (default:
-                           ~/.larch/config.yaml)
-         --database <s>:   Specify a non-default message database to use
-                           (default: ~/.larch/larch.db)
-          --dry-run, -n:   Don't actually make any changes
-      --max-retries <i>:   Maximum number of times to retry after a recoverable
-                           error (default: 3)
-     --no-create-folder:   Don't create destination folders that don't already
-                           exist
-        --ssl-certs <s>:   Path to a trusted certificate bundle to use to
-                           verify server SSL certificates
-           --ssl-verify:   Verify server SSL certificates
-    --verbosity, -V <s>:   Output verbosity: debug, info, warn, error, or fatal
-                           (default: info)
-          --version, -v:   Print version and exit
-             --help, -h:   Show this message
+         --config, -c <s>:   Specify a non-default config file to use (default:
+                             ~/.larch/config.yaml)
+           --database <s>:   Specify a non-default message database to use
+                             (default: ~/.larch/larch.db)
+            --dry-run, -n:   Don't actually make any changes
+        --max-retries <i>:   Maximum number of times to retry after a
+                             recoverable error (default: 3)
+       --no-create-folder:   Don't create destination folders that don't
+                             already exist
+          --ssl-certs <s>:   Path to a trusted certificate bundle to use to
+                             verify server SSL certificates
+             --ssl-verify:   Verify server SSL certificates
+      --verbosity, -V <s>:   Output verbosity: debug, info, warn, error, or
+                             fatal (default: info)
+            --version, -v:   Print version and exit
+               --help, -h:   Show this message
 
 == Usage Examples
 
