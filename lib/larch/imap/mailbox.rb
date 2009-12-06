@@ -95,11 +95,17 @@ class Mailbox
   end
   alias << append
 
+  # Iterates through messages in this mailbox, yielding a
+  # Larch::Database::Message object for each to the provided block.
+  def each_db_message # :yields: db_message
+    scan
+    @db_mailbox.messages_dataset.all {|db_message| yield db_message }
+  end
+
   # Iterates through messages in this mailbox, yielding the Larch message guid
   # of each to the provided block.
   def each_guid # :yields: guid
-    scan
-    @db_mailbox.messages_dataset.each {|db_message| yield db_message.guid }
+    each_db_message {|db_message| yield db_message.guid }
   end
 
   # Iterates through mailboxes that are first-level children of this mailbox,
