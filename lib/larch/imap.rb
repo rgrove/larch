@@ -30,6 +30,10 @@ class IMAP
   #   that it's not actually possible to simulate mailbox creation, so
   #   +:dry_run+ mode always behaves as if +:create_mailbox+ is +false+.
   #
+  # [:log_label]
+  #   Label to use for this connection in log output. If not specified, the
+  #   default label is "[username@host]".
+  #
   # [:max_retries]
   #   After a recoverable error occurs, retry the operation up to this many
   #   times. Default is 3.
@@ -49,8 +53,12 @@ class IMAP
     raise ArgumentError, "not an IMAP URI: #{uri}" unless uri.is_a?(URI) || uri =~ REGEX_URI
     raise ArgumentError, "options must be a Hash" unless options.is_a?(Hash)
 
-    @options = {:max_retries => 3, :ssl_verify => false}.merge(options)
     @uri     = uri.is_a?(URI) ? uri : URI(uri)
+    @options = {
+      :log_label   => "[#{username}@#{host}]",
+      :max_retries => 3,
+      :ssl_verify  => false
+    }.merge(options)
 
     raise ArgumentError, "must provide a username and password" unless @uri.user && @uri.password
 
@@ -74,7 +82,7 @@ class IMAP
 
       IMAP.class_eval do
         define_method(level) do |msg|
-          Larch.log.log(level, "#{username}@#{host}: #{msg}")
+          Larch.log.log(level, "#{@options[:log_label]} #{msg}")
         end
 
         private level
@@ -300,7 +308,7 @@ class IMAP
             ssl? && @options[:ssl_verify] ? @options[:ssl_certs] : nil,
             @options[:ssl_verify])
 
-        info "connected on port #{port}" << (ssl? ? ' using SSL' : '')
+        info "connected to #{host} on port #{port}" << (ssl? ? ' using SSL' : '')
 
         check_quirks
 

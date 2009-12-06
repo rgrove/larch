@@ -54,7 +54,7 @@ class Mailbox
 
       Mailbox.class_eval do
         define_method(level) do |msg|
-          Larch.log.log(level, "#{@imap.username}@#{@imap.host}: #{@name}: #{msg}")
+          Larch.log.log(level, "#{@imap.options[:log_label]} #{@name}: #{msg}")
         end
 
         private level

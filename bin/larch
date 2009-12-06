@@ -87,6 +87,7 @@ EOS
 
   imap_from = Larch::IMAP.new(uri_from,
       :dry_run     => config[:dry_run],
+      :log_label   => '[<]',
       :max_retries => config[:max_retries],
       :ssl_certs   => config[:ssl_certs] || nil,
       :ssl_verify  => config[:ssl_verify]
@@ -95,6 +96,7 @@ EOS
   imap_to = Larch::IMAP.new(uri_to,
       :create_mailbox => !config[:no_create_folder] && !config[:dry_run],
       :dry_run        => config[:dry_run],
+      :log_label      => '[>]',
       :max_retries    => config[:max_retries],
       :ssl_certs      => config[:ssl_certs] || nil,
       :ssl_verify     => config[:ssl_verify]

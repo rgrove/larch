@@ -176,7 +176,7 @@ module Larch
       imap_from = mailbox_from.imap
       imap_to   = mailbox_to.imap
 
-      @log.info "copying messages from #{imap_from.host}/#{mailbox_from.name} to #{imap_to.host}/#{mailbox_to.name}"
+      @log.info "#{imap_from.host}/#{mailbox_from.name} -> #{imap_to.host}/#{mailbox_to.name}"
 
       @total += mailbox_from.length
 
@@ -193,7 +193,7 @@ module Larch
             from = '?'
           end
 
-          @log.info "copying message: #{from} - #{msg.envelope.subject}"
+          @log.info "copying: #{from} - #{msg.envelope.subject}"
 
           mailbox_to << msg
           @copied += 1

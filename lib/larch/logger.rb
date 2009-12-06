@@ -34,7 +34,7 @@ class Logger
 
   def log(level, msg)
     return true if LEVELS[level] > LEVELS[@level] || msg.nil? || msg.empty?
-    @output.puts "[#{Time.new.strftime('%b %d %H:%M:%S')}] [#{level}] #{msg}"
+    @output.puts "[#{Time.new.strftime('%H:%M:%S')}] [#{level}] #{msg}"
     true
 
   rescue => e
