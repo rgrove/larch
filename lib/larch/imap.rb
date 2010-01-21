@@ -99,7 +99,7 @@ class IMAP
 
   # Gets the server's mailbox hierarchy delimiter.
   def delim
-    @delim ||= safely { @conn.list('', '')[0].delim }
+    @delim ||= safely { @conn.list('', '')[0].delim || '.'}
   end
 
   # Closes the IMAP connection if one is currently open.
@@ -362,7 +362,7 @@ class IMAP
       name = Net::IMAP.decode_utf7(mb.name)
       name = 'INBOX' if name.downcase == 'inbox'
 
-      @mailboxes[name] ||= Mailbox.new(self, name, mb.delim,
+      @mailboxes[name] ||= Mailbox.new(self, name, mb.delim || '.',
           subscribed.any?{|s| s.name == mb.name}, mb.attr)
     end
 
