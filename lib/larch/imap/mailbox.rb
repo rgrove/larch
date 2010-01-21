@@ -438,6 +438,7 @@ class Mailbox
 
     @imap.safely do
       begin
+        @imap.conn.close unless @state == :closed
         @state = :closed
 
         debug "examining mailbox"
@@ -466,6 +467,7 @@ class Mailbox
 
     @imap.safely do
       begin
+        @imap.conn.close unless @state == :closed
         @state = :closed
 
         debug "selecting mailbox"
