@@ -213,6 +213,10 @@ servers:
 * Gmail
 * Microsoft Exchange 2003
 
+The following servers are known to work, but with caveats:
+
+* Yahoo! Mail
+
 The following servers do not work well with Larch:
 
 * BlitzMail - Buggy server implementation; fails to properly quote or escape
@@ -257,6 +261,35 @@ Most IMAP servers allow folder names to contain leading and trailing whitespace,
 such as "  folder  ". Gmail does not. When copying folders to Gmail, Larch will
 automatically remove leading and trailing whitespace in folder names to prevent
 errors.
+
+=== Yahoo! Mail Quirks
+
+Yahoo! doesn't officially support IMAP access for general usage, but Larch is
+able to connect to imap.mail.yahoo.com and imap-ssl.mail.yahoo.com by using a
+fairly well-known trick. That said, as with anything tricky, there are caveats.
+
+==== No hierarchical folders
+
+Similar to Gmail, Yahoo!'s IMAP gateway doesn't allow hierarchical (nested)
+folders. If you try to copy a folder hierarchy to Yahoo!, it will work, but
+you'll end up with a set of folders named "folder" and "folder.subfolder"
+rather than seeing "subfolder" as an actual subfolder of "folder".
+
+==== No custom flags
+
+Yahoo! Mail IMAP doesn't appear to support custom message flags, such as the
+labels and junk/not junk flags used by Thunderbird. When transferring messages
+with custom flags to a Yahoo! Mail IMAP account, the custom flags will be lost.
+Also, Larch's <tt>sync-flags</tt> option will not work correctly if you have
+messages with custom flags.
+
+==== Here there be dragons
+
+Larch's support for Yahoo! Mail is very new and very lightly tested. Given its
+newness and the fact that Yahoo!'s IMAP gateway isn't official, there are likely
+to be other quirks we're not yet aware of. There's also no guarantee that Yahoo!
+won't shut down its IMAP gateway, deprecate the trick Larch uses to connect, or
+just outright block Larch. Use at your own risk.
 
 == Known Issues
 

@@ -64,8 +64,10 @@ class IMAP
 
     @conn      = nil
     @mailboxes = {}
+
     @quirks    = {
-      :gmail => false
+      :gmail => false,
+      :yahoo => false
     }
 
     @db_account = Database::Account.find_or_create(
@@ -258,6 +260,10 @@ class IMAP
     if @conn.greeting.data.text =~ /^Gimap ready/
       @quirks[:gmail] = true
       debug "looks like Gmail"
+
+    elsif host =~ /^imap(?:-ssl)?\.mail\.yahoo\.com$/
+      @quirks[:yahoo] = true
+      debug "looks like Yahoo! Mail"
     end
   end
 
@@ -311,6 +317,12 @@ class IMAP
         info "connected to #{host} on port #{port}" << (ssl? ? ' using SSL' : '')
 
         check_quirks
+
+        # If this is Yahoo! Mail, we have to send a special command before
+        # it'll let us authenticate.
+        if @quirks[:yahoo]
+          @conn.instance_eval { send_command('ID ("guid" "1")') }
+        end
 
         auth_methods = ['PLAIN']
         tried        = []

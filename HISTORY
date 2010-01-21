@@ -12,6 +12,9 @@ Version 1.1.0 (git)
     command-line, Larch will use the options in that section for the session;
     otherwise it will use the options in the "default" section. See the README
     for more details.
+  * Added experimental support for Yahoo! Mail IMAP when connecting to
+    imap.mail.yahoo.com or imap-ssl.mail.yahoo.com. See the README for caveats
+    and known issues.
   * Folders are now copied recursively by default.
   * Progress information is now displayed regularly while scanning large
     mailboxes.
