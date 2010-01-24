@@ -121,7 +121,7 @@ class Mailbox
     scan
 
     unless db_message = fetch_db_message(guid)
-      warn "message not found in local db: #{guid}"
+      warning "message not found in local db: #{guid}"
       return nil
     end
 
@@ -135,7 +135,7 @@ class Mailbox
           data.attr['FLAGS'], Time.parse(data.attr['INTERNALDATE']))
     end
 
-    warn "message not found on server: #{guid}"
+    warning "message not found on server: #{guid}"
     return nil
   end
   alias [] fetch
@@ -563,7 +563,7 @@ class Mailbox
           raise unless e.message == 'Some messages could not be FETCHed (Failure)'
 
           # Workaround for stupid Gmail shenanigans.
-          warn "Gmail error: '#{e.message}'; continuing anyway"
+          warning "Gmail error: '#{e.message}'; continuing anyway"
         end
 
         next data

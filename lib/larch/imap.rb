@@ -198,7 +198,7 @@ class IMAP
 
       raise unless (retries += 1) <= @options[:max_retries]
 
-      warn "#{e.class.name}: #{e.message} (reconnecting)"
+      warning "#{e.class.name}: #{e.message} (reconnecting)"
 
       reset
       sleep 1 * retries
@@ -211,7 +211,7 @@ class IMAP
 
       raise unless (retries += 1) <= @options[:max_retries]
 
-      warn "#{e.class.name}: #{e.message} (will retry)"
+      warning "#{e.class.name}: #{e.message} (will retry)"
 
       sleep 1 * retries
       retry
@@ -292,7 +292,7 @@ class IMAP
       # verification errors.
       raise if e.is_a?(OpenSSL::SSL::SSLError) && e.message =~ /certificate verify failed/
 
-      warn "#{e.class.name}: #{e.message} (will retry)"
+      warning "#{e.class.name}: #{e.message} (will retry)"
 
       reset
       sleep 1 * retries
