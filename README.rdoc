@@ -270,18 +270,16 @@ fairly well-known trick. That said, as with anything tricky, there are caveats.
 
 ==== No hierarchical folders
 
-Similar to Gmail, Yahoo!'s IMAP gateway doesn't allow hierarchical (nested)
-folders. If you try to copy a folder hierarchy to Yahoo!, it will work, but
-you'll end up with a set of folders named "folder" and "folder.subfolder"
-rather than seeing "subfolder" as an actual subfolder of "folder".
+Similar to Gmail, Yahoo! Mail doesn't allow hierarchical (nested) folders. If
+you try to copy a folder hierarchy to Yahoo!, it will work, but you'll end up
+with a set of folders named "folder" and "folder.subfolder" rather than seeing
+"subfolder" as an actual subfolder of "folder".
 
 ==== No custom flags
 
-Yahoo! Mail IMAP doesn't appear to support custom message flags, such as the
-labels and junk/not junk flags used by Thunderbird. When transferring messages
-with custom flags to a Yahoo! Mail IMAP account, the custom flags will be lost.
-Also, Larch's <tt>sync-flags</tt> option will not work correctly if you have
-messages with custom flags.
+Yahoo! Mail IMAP doesn't support custom message flags, such as the tags and
+junk/not junk flags used by Thunderbird. When transferring messages with custom
+flags to a Yahoo! Mail IMAP account, the custom flags will be lost.
 
 ==== Here there be dragons
 

@@ -74,21 +74,8 @@ class Mailbox
         raise Larch::IMAP::Error, "mailbox cannot contain messages: #{@name}"
       end
 
-      flags = message.flags.dup
-
-      # Don't set any flags that aren't supported on the destination mailbox.
-      flags.delete_if do |flag|
-        # The \Recent flag is read-only, so we shouldn't try to set it.
-        next true if flag == :Recent
-
-        unless @flags.include?(flag) || @perm_flags.include?(:*) || @perm_flags.include?(flag)
-          warning "flag not supported on destination: #{flag}"
-          true
-        end
-      end
-
       debug "appending message: #{message.guid}"
-      @imap.conn.append(@name_utf7, message.rfc822, flags, message.internaldate) unless @imap.options[:dry_run]
+      @imap.conn.append(@name_utf7, message.rfc822, get_supported_flags(message.flags), message.internaldate) unless @imap.options[:dry_run]
     end
 
     true
@@ -244,14 +231,18 @@ class Mailbox
 
   # Sets the IMAP flags for the message specified by _guid_, replacing any
   # existing flags (except <code>:Recent</code>). _flags_ should be an array of
-  # symbols. Returns +true+ on success, +false+ on failure.
+  # symbols for standard flags, strings for custom flags. Returns +true+ on
+  # success, +false+ on failure.
   def set_flags(guid, flags)
     raise ArgumentError, "flags must be an Array" unless flags.is_a?(Array)
 
-    db_message = fetch_db_message(guid)
-    return false if db_message.nil? || !imap_select
+    return false unless db_message = fetch_db_message(guid)
 
-    @imap.safely { @imap.conn.uid_store(db_message.uid, 'FLAGS.SILENT', flags) } unless @imap.options[:dry_run]
+    supported_flags = get_supported_flags(flags)
+    return true if db_message.flags == supported_flags
+
+    return false if !imap_select
+    @imap.safely { @imap.conn.uid_store(db_message.uid, 'FLAGS.SILENT', supported_flags) } unless @imap.options[:dry_run]
 
     true
   end
@@ -315,6 +306,24 @@ class Mailbox
       Digest::MD5.hexdigest(sprintf('%d%d', data.attr['RFC822.SIZE'],
           Time.parse(data.attr['INTERNALDATE']).to_i))
     end
+  end
+
+  # Returns only the flags from the specified _flags_ array that can be set in
+  # this mailbox. Emits a warning message for any unsupported flags.
+  def get_supported_flags(flags)
+    supported_flags = flags.dup
+
+    supported_flags.delete_if do |flag|
+      # The \Recent flag is read-only, so we shouldn't try to set it.
+      next true if flag == :Recent
+
+      unless @flags.include?(flag) || @perm_flags.include?(:*) || @perm_flags.include?(flag)
+        warning "flag not supported on destination: #{flag}"
+        true
+      end
+    end
+
+    supported_flags
   end
 
   # Fetches the latest flags from the server for the specified range of message
