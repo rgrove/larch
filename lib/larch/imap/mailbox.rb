@@ -82,7 +82,7 @@ class Mailbox
         next true if flag == :Recent
 
         unless @flags.include?(flag) || @perm_flags.include?(:*) || @perm_flags.include?(flag)
-          info "flag not supported on destination: #{flag}"
+          warning "flag not supported on destination: #{flag}"
           true
         end
       end
