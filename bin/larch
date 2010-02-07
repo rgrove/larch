@@ -12,7 +12,7 @@ module Larch
   options = Trollop.options do
     version "Larch #{APP_VERSION}\n" << APP_COPYRIGHT
     banner <<-EOS
-Larch syncs messages from one IMAP server to another. Awesomely.
+Larch copies messages from one IMAP server to another. Awesomely.
 
 Usage:
   larch [config section] [options]
@@ -29,11 +29,13 @@ EOS
     opt :to_pass,     "Destination server password (default: prompt)", :short => '-P', :type => :string
     opt :to_user,     "Destination server username (default: prompt)", :short => '-U', :type => :string
 
-    text "\nSync Options:"
+    text "\nCopy Options:"
     opt :all,              "Copy all folders recursively", :short => '-a'
     opt :all_subscribed,   "Copy all subscribed folders recursively", :short => '-s'
+    opt :delete,           "Delete messages from the source after copying them, or if they already exist at the destination", :short => '-d'
     opt :exclude,          "List of mailbox names/patterns that shouldn't be copied", :short => :none, :type => :strings, :multi => true
     opt :exclude_file,     "Filename containing mailbox names/patterns that shouldn't be copied", :short => :none, :type => :string
+    opt :expunge,          "Expunge deleted messages from the source", :short => '-x'
     opt :sync_flags,       "Sync message flags from the source to the destination for messages that already exist at the destination", :short => '-S'
 
     text "\nGeneral Options:"

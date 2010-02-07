@@ -38,9 +38,10 @@ module Larch
       Net::IMAP.debug = true if @log.level == :insane
 
       # Stats
-      @copied = 0
-      @failed = 0
-      @total  = 0
+      @copied  = 0
+      @deleted = 0
+      @failed  = 0
+      @total   = 0
     end
 
     # Recursively copies all messages in all folders from the source to the
@@ -49,9 +50,10 @@ module Larch
       raise ArgumentError, "imap_from must be a Larch::IMAP instance" unless imap_from.is_a?(IMAP)
       raise ArgumentError, "imap_to must be a Larch::IMAP instance" unless imap_to.is_a?(IMAP)
 
-      @copied = 0
-      @failed = 0
-      @total  = 0
+      @copied  = 0
+      @deleted = 0
+      @failed  = 0
+      @total   = 0
 
       imap_from.each_mailbox do |mailbox_from|
         next if excluded?(mailbox_from.name)
@@ -82,9 +84,10 @@ module Larch
       raise ArgumentError, "imap_from must be a Larch::IMAP instance" unless imap_from.is_a?(IMAP)
       raise ArgumentError, "imap_to must be a Larch::IMAP instance" unless imap_to.is_a?(IMAP)
 
-      @copied = 0
-      @failed = 0
-      @total  = 0
+      @copied  = 0
+      @deleted = 0
+      @failed  = 0
+      @total   = 0
 
       mailbox_from = imap_from.mailbox(imap_from.uri_mailbox || 'INBOX')
       mailbox_to   = imap_to.mailbox(imap_to.uri_mailbox || 'INBOX')
@@ -144,7 +147,7 @@ module Larch
     end
 
     def summary
-      @log.info "#{@copied} message(s) copied, #{@failed} failed, #{@total - @copied - @failed} untouched out of #{@total} total"
+      @log.info "#{@copied} message(s) copied, #{@failed} failed, #{@deleted} deleted out of #{@total} total"
     end
 
 
@@ -182,19 +185,26 @@ module Larch
 
       mailbox_from.each_db_message do |from_db_message|
         guid = from_db_message.guid
+        uid  = from_db_message.uid
 
         if mailbox_to.has_guid?(guid)
-          next unless @config['sync_flags']
-
           begin
-            to_db_message = mailbox_to.fetch_db_message(guid)
+            if @config['sync_flags']
+              to_db_message = mailbox_to.fetch_db_message(guid)
 
-            if to_db_message.flags != from_db_message.flags
-              new_flags = from_db_message.flags_str
-              new_flags = '(none)' if new_flags.empty?
+              if to_db_message.flags != from_db_message.flags
+                new_flags = from_db_message.flags_str
+                new_flags = '(none)' if new_flags.empty?
 
-              @log.info "syncing flags: UID #{to_db_message.uid}: #{new_flags}"
-              mailbox_to.set_flags(guid, from_db_message.flags)
+                @log.info "[>] syncing flags: uid #{uid}: #{new_flags}"
+                mailbox_to.set_flags(guid, from_db_message.flags)
+              end
+            end
+
+            if @config['delete'] && !from_db_message.flags.include?(:Deleted)
+              @log.info "[<] deleting uid #{uid} (already exists at destination)"
+              mailbox_from.set_flags(guid, [:Deleted], true)
+              @deleted += 1
             end
           rescue Larch::IMAP::Error => e
             @log.error e.message
@@ -213,15 +223,30 @@ module Larch
             from = '?'
           end
 
-          @log.info "copying: #{from} - #{msg.envelope.subject}"
+          @log.info "[>] copying uid #{uid}: #{from} - #{msg.envelope.subject}"
 
           mailbox_to << msg
           @copied += 1
+
+          if @config['delete']
+            @log.info "[<] deleting uid #{uid}"
+            mailbox_from.set_flags(guid, [:Deleted], true)
+            @deleted += 1
+          end
 
         rescue Larch::IMAP::Error => e
           @failed += 1
           @log.error e.message
           next
+        end
+      end
+
+      if @config['expunge']
+        begin
+          @log.debug "[<] expunging deleted messages"
+          mailbox_from.expunge
+        rescue Larch::IMAP::Error => e
+          @log.error e.message
         end
       end
     end

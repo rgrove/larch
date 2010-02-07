@@ -8,9 +8,11 @@ class Config
     'all-subscribed'   => false,
     'config'           => File.join('~', '.larch', 'config.yaml'),
     'database'         => File.join('~', '.larch', 'larch.db'),
+    'delete'           => false,
     'dry-run'          => false,
     'exclude'          => [],
     'exclude-file'     => nil,
+    'expunge'          => false,
     'from'             => nil,
     'from-folder'      => nil, # actually INBOX; see validate()
     'from-pass'        => nil,

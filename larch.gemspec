@@ -2,11 +2,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{larch}
-  s.version = "1.1.0.dev.20100120"
+  s.version = "1.1.0.dev.20100206"
 
   s.required_rubygems_version = Gem::Requirement.new("> 1.3.1") if s.respond_to? :required_rubygems_version=
   s.authors = ["Ryan Grove"]
-  s.date = %q{2010-01-20}
+  s.date = %q{2010-02-06}
   s.default_executable = %q{larch}
   s.email = %q{ryan@wonko.com}
   s.executables = ["larch"]
@@ -15,7 +15,7 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
   s.required_ruby_version = Gem::Requirement.new(">= 1.8.6")
   s.rubygems_version = %q{1.3.5}
-  s.summary = %q{Larch syncs messages from one IMAP server to another. Awesomely.}
+  s.summary = %q{Larch copies messages from one IMAP server to another. Awesomely.}
 
   if s.respond_to? :specification_version then
     current_version = Gem::Specification::CURRENT_SPECIFICATION_VERSION

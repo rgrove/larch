@@ -101,6 +101,19 @@ class Mailbox
     mailboxes.each {|mb| yield mb }
   end
 
+  # Expunges this mailbox, permanently removing all messages with the \Deleted
+  # flag.
+  def expunge
+    return false unless imap_select
+
+    @imap.safely do
+      debug "expunging deleted messages"
+
+      @last_scan = nil
+      @imap.conn.expunge unless @imap.options[:dry_run]
+    end
+  end
+
   # Returns a Larch::IMAP::Message struct representing the message with the
   # specified Larch _guid_, or +nil+ if the specified guid was not found in this
   # mailbox.
@@ -229,16 +242,24 @@ class Mailbox
     return
   end
 
-  # Sets the IMAP flags for the message specified by _guid_, replacing any
-  # existing flags (except <code>:Recent</code>). _flags_ should be an array of
-  # symbols for standard flags, strings for custom flags. Returns +true+ on
-  # success, +false+ on failure.
-  def set_flags(guid, flags)
+  # Sets the IMAP flags for the message specified by _guid_. _flags_ should be
+  # an array of symbols for standard flags, strings for custom flags.
+  #
+  # If _merge_ is +true+, the specified flags will be merged with the message's
+  # existing flags. Otherwise, all existing flags will be cleared and replaced
+  # with the specified flags.
+  #
+  # Note that the :Recent flag cannot be manually set or removed.
+  #
+  # Returns +true+ on success, +false+ on failure.
+  def set_flags(guid, flags, merge = false)
     raise ArgumentError, "flags must be an Array" unless flags.is_a?(Array)
 
     return false unless db_message = fetch_db_message(guid)
 
-    supported_flags = get_supported_flags(flags)
+    merged_flags    = merge ? (db_message.flags + flags).uniq : flags
+    supported_flags = get_supported_flags(merged_flags)
+
     return true if db_message.flags == supported_flags
 
     return false if !imap_select

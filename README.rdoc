@@ -10,7 +10,7 @@ accounts.
 
 *Author*::    Ryan Grove (mailto:ryan@wonko.com)
 *Version*::   1.1.0 (git)
-*Copyright*:: Copyright (c) 2009 Ryan Grove. All rights reserved.
+*Copyright*:: Copyright (c) 2010 Ryan Grove. All rights reserved.
 *License*::   GPL 2.0 (http://opensource.org/licenses/gpl-2.0.php)
 *Website*::   http://github.com/rgrove/larch
 
@@ -28,7 +28,7 @@ Latest development version:
 
   larch [config section] [options]
   larch --from <uri> --to <uri> [options]
-  
+
   Server Options:
            --from, -f <s>:   URI of the source IMAP server
     --from-folder, -F <s>:   Source folder to copy from (default: INBOX)
@@ -39,13 +39,16 @@ Latest development version:
         --to-pass, -P <s>:   Destination server password (default: prompt)
         --to-user, -U <s>:   Destination server username (default: prompt)
 
-  Sync Options:
+  Copy Options:
                 --all, -a:   Copy all folders recursively
      --all-subscribed, -s:   Copy all subscribed folders recursively
+             --delete, -d:   Delete messages from the source after copying
+                             them, or if they already exist at the destination
            --exclude <s+>:   List of mailbox names/patterns that shouldn't be
                              copied
        --exclude-file <s>:   Filename containing mailbox names/patterns that
                              shouldn't be copied
+            --expunge, -x:   Expunge deleted messages from the source
          --sync-flags, -S:   Sync message flags from the source to the
                              destination for messages that already exist at the
                              destination
@@ -334,7 +337,7 @@ Gray II).
 
 == License
 
-Copyright (c) 2009 Ryan Grove <ryan@wonko.com>
+Copyright (c) 2010 Ryan Grove <ryan@wonko.com>
 
 Licensed under the GNU General Public License version 2.0.
 

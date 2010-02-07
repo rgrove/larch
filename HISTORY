@@ -18,6 +18,9 @@ Version 1.1.0 (git)
   * Folders are now copied recursively by default.
   * Progress information is now displayed regularly while scanning large
     mailboxes.
+  * Added --delete option to delete messages from the source after copying them
+    to the destination, or if they already exist at the destination.
+  * Added --expunge option to expunge deleted messages from the source.
   * Added --sync-flags option to synchronize message flags (like Seen, Flagged,
     etc.) from the source server to the destination server for messages that
     already exist on the destination.
