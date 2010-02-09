@@ -2,15 +2,15 @@
 
 Gem::Specification.new do |s|
   s.name = %q{larch}
-  s.version = "1.1.0.dev.20100206"
+  s.version = "1.1.0.dev.20100208"
 
   s.required_rubygems_version = Gem::Requirement.new("> 1.3.1") if s.respond_to? :required_rubygems_version=
   s.authors = ["Ryan Grove"]
-  s.date = %q{2010-02-06}
+  s.date = %q{2010-02-08}
   s.default_executable = %q{larch}
   s.email = %q{ryan@wonko.com}
   s.executables = ["larch"]
-  s.files = ["HISTORY", "LICENSE", "README.rdoc", "bin/larch", "lib/larch/config.rb", "lib/larch/db/account.rb", "lib/larch/db/mailbox.rb", "lib/larch/db/message.rb", "lib/larch/db/migrate/001_create_schema.rb", "lib/larch/db/migrate/002_add_timestamps.rb", "lib/larch/errors.rb", "lib/larch/imap/mailbox.rb", "lib/larch/imap.rb", "lib/larch/logger.rb", "lib/larch/version.rb", "lib/larch.rb"]
+  s.files = ["HISTORY", "LICENSE", "README.rdoc", "bin/larch", "lib/larch/config.rb", "lib/larch/db/account.rb", "lib/larch/db/mailbox.rb", "lib/larch/db/message.rb", "lib/larch/db/migrate/001_create_schema.rb", "lib/larch/db/migrate/002_add_timestamps.rb", "lib/larch/errors.rb", "lib/larch/imap/mailbox.rb", "lib/larch/imap.rb", "lib/larch/logger.rb", "lib/larch/monkeypatch/net/imap.rb", "lib/larch/version.rb", "lib/larch.rb"]
   s.homepage = %q{http://github.com/rgrove/larch/}
   s.require_paths = ["lib"]
   s.required_ruby_version = Gem::Requirement.new(">= 1.8.6")

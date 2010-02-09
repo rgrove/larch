@@ -9,6 +9,8 @@ require 'yaml'
 require 'sequel'
 require 'sequel/extensions/migration'
 
+require 'larch/monkeypatch/net/imap'
+
 require 'larch/config'
 require 'larch/errors'
 require 'larch/imap'

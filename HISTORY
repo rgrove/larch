@@ -30,6 +30,8 @@ Version 1.1.0 (git)
     --all-subscribed to copy messages from multiple source folders to a single
     destination folder.
   * More concise log messages to reduce visual clutter in the log.
+  * Monkeypatched Net::IMAP to fix broken response handling with certain server
+    responses, particularly when changing mailboxes on a Dovecot 1.2+ server.
   * Fixed encoding issues when creating mailboxes and getting mailbox lists.
   * Fixed incorrect case-sensitive treatment of the 'INBOX' folder name.
   * Fixed a bug in which Larch would try to copy flags that weren't supported on
