@@ -251,6 +251,10 @@ module Larch
           @log.error e.message
         end
       end
+
+    rescue Larch::IMAP::Error => e
+      @log.error e.message
+
     end
 
     def db_maintenance
