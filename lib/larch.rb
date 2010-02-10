@@ -205,9 +205,9 @@ module Larch
 
             if @config['delete'] && !from_db_message.flags.include?(:Deleted)
               @log.info "[<] deleting uid #{uid} (already exists at destination)"
-              mailbox_from.set_flags(guid, [:Deleted], true)
-              @deleted += 1
+              @deleted += 1 if mailbox_from.delete_message(guid)
             end
+
           rescue Larch::IMAP::Error => e
             @log.error e.message
           end
@@ -232,8 +232,7 @@ module Larch
 
           if @config['delete']
             @log.info "[<] deleting uid #{uid}"
-            mailbox_from.set_flags(guid, [:Deleted], true)
-            @deleted += 1
+            @deleted += 1 if mailbox_from.delete_message(guid)
           end
 
         rescue Larch::IMAP::Error => e

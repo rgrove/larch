@@ -82,6 +82,21 @@ class Mailbox
   end
   alias << append
 
+  # Deletes the message in this mailbox with the specified guid. Returns +true+
+  # on success, +false+ on failure.
+  def delete_message(guid)
+    if @imap.quirks[:gmail]
+      return false unless db_message = fetch_db_message(guid)
+
+      debug "moving message to Gmail trash: #{guid}"
+
+      @imap.safely { @imap.conn.uid_copy(db_message.uid, '[Gmail]/Trash') } &&
+          set_flags(guid, [:Deleted], true)
+    else
+      set_flags(guid, [:Deleted], true)
+    end
+  end
+
   # Iterates through messages in this mailbox, yielding a
   # Larch::Database::Message object for each to the provided block.
   def each_db_message # :yields: db_message
