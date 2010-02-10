@@ -142,7 +142,7 @@ class Mailbox
 
   # Returns a Larch::Database::Message object representing the message with the
   # specified Larch _guid_, or +nil+ if the specified guide was not found in
-  # this mailbox. 
+  # this mailbox.
   def fetch_db_message(guid)
     scan
     @db_mailbox.messages_dataset.filter(:guid => guid).first
@@ -227,11 +227,13 @@ class Mailbox
     end
 
     @db_mailbox.update(:uidvalidity => status['UIDVALIDITY'])
-    return unless flag_range || full_range.last - full_range.first > 0
 
-    fetch_flags(flag_range) if flag_range && flag_range.last - flag_range.first > 0
+    need_flag_scan = flag_range && flag_range.max && flag_range.min && flag_range.max - flag_range.min > 0
+    need_full_scan = full_range && full_range.max && full_range.min && full_range.max - full_range.min > 0
 
-    if full_range && full_range.last - full_range.first > 0
+    fetch_flags(flag_range) if need_flag_scan
+
+    if need_full_scan
       fetch_headers(full_range, {
         :progress_start => @db_mailbox.messages_dataset.count + 1,
         :progress_total => status['MESSAGES']
