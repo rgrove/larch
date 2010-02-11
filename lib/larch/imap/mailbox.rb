@@ -246,6 +246,8 @@ class Mailbox
     need_flag_scan = flag_range && flag_range.max && flag_range.min && flag_range.max - flag_range.min > 0
     need_full_scan = full_range && full_range.max && full_range.min && full_range.max - full_range.min > 0
 
+    return unless need_flag_scan || need_full_scan
+
     fetch_flags(flag_range) if need_flag_scan
 
     if need_full_scan
@@ -592,10 +594,10 @@ class Mailbox
       end
 
     elsif set.is_a?(Range)
-      pos = set.first - 1
+      pos = set.min - 1
 
-      while pos < set.last
-        blocks << ((pos + 1)..[set.last, pos += block_size].min)
+      while pos < set.max
+        blocks << ((pos + 1)..[set.max, pos += block_size].min)
       end
     end
 
