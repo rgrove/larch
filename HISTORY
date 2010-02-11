@@ -15,7 +15,8 @@ Version 1.1.0 (git)
   * Added experimental support for Yahoo! Mail IMAP when connecting to
     imap.mail.yahoo.com or imap-ssl.mail.yahoo.com. See the README for caveats
     and known issues.
-  * Folders are now copied recursively by default.
+  * Folders are now copied recursively by default. Use the --no-recurse option
+    for the old behavior.
   * Progress information is now displayed regularly while scanning large
     mailboxes.
   * Added --delete option to delete messages from the source after copying them

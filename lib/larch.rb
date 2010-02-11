@@ -165,10 +165,12 @@ module Larch
       mailbox_to.subscribe if mailbox_from.subscribed?
       copy_messages(mailbox_from, mailbox_to)
 
-      mailbox_from.each_mailbox do |child_from|
-        next if excluded?(child_from.name)
-        child_to = mailbox_to.imap.mailbox(child_from.name, child_from.delim)
-        copy_mailbox(child_from, child_to)
+      unless @config['no-recurse']
+        mailbox_from.each_mailbox do |child_from|
+          next if excluded?(child_from.name)
+          child_to = mailbox_to.imap.mailbox(child_from.name, child_from.delim)
+          copy_mailbox(child_from, child_to)
+        end
       end
     end
 

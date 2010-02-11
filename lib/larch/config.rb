@@ -19,6 +19,7 @@ class Config
     'from-user'        => nil,
     'max-retries'      => 3,
     'no-create-folder' => false,
+    'no-recurse'       => false,
     'ssl-certs'        => nil,
     'ssl-verify'       => false,
     'sync-flags'       => false,
@@ -94,6 +95,10 @@ class Config
         # 'all' wins over 'all-subscribed'
         @cached['all-subscribed'] = false
       end
+
+      # 'no-recurse' is not compatible with 'all' and 'all-subscribed'
+      raise Error, "'no-recurse' option cannot be used with 'all' or 'all-subscribed'" if @cached['no-recurse']
+
     else
       @cached['from-folder'] ||= 'INBOX'
       @cached['to-folder']   ||= 'INBOX'

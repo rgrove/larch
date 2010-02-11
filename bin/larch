@@ -36,6 +36,7 @@ EOS
     opt :exclude,          "List of mailbox names/patterns that shouldn't be copied", :short => :none, :type => :strings, :multi => true
     opt :exclude_file,     "Filename containing mailbox names/patterns that shouldn't be copied", :short => :none, :type => :string
     opt :expunge,          "Expunge deleted messages from the source", :short => '-x'
+    opt :no_recurse,       "Don't copy subfolders recursively (cannot be used with --all or --all_subscribed)", :short => :none
     opt :sync_flags,       "Sync message flags from the source to the destination for messages that already exist at the destination", :short => '-S'
 
     text "\nGeneral Options:"
