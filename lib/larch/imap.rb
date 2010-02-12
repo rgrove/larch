@@ -81,20 +81,15 @@ class Larch::IMAP
     begin
       methods_tried << method = auth_methods.pop
 
-      # debug "authenticating using #{method}"
-
       if method == 'PLAIN'
         @conn.login(username, password)
       else
         @conn.authenticate(method, username, password)
       end
 
-      # debug "authenticated using #{method}"
-
     rescue Net::IMAP::BadResponseError,
            Net::IMAP::NoResponseError => e
 
-      # debug "#{method} auth failed: #{e.message}"
       retry unless auth_methods.empty?
 
       raise e, "#{e.message} (tried #{methods_tried.join(', ')})"
@@ -208,12 +203,7 @@ class Larch::IMAP
     retries = 0
 
     begin
-      connect unless connected?
-      authenticate unless authenticated?
-
-      if mb = mailbox(true)
-        @options[:read_only] ? examine(mb) : select(mb)
-      end
+      start
 
       yield
 
@@ -234,8 +224,6 @@ class Larch::IMAP
       # verification errors.
       raise if e.is_a?(OpenSSL::SSL::SSLError) && e.message =~ /certificate verify failed/
 
-      # warning "#{e.class.name}: #{e.message} (reconnecting)"
-
       @conn          = nil
       @authenticated = false
 
@@ -252,6 +240,18 @@ class Larch::IMAP
     @uri.path = "/#{CGI.escape(Net::IMAP.decode_utf7(mailbox))}"
 
     response
+  end
+
+  # Starts an IMAP session by connecting, authenticating, and opening the
+  # mailbox specified in the current URI (if any). If already connected and
+  # authenticated, this method will simply attempt to open the mailbox.
+  def start
+    connect unless connected?
+    authenticate unless authenticated?
+
+    if mb = mailbox(true)
+      @options[:read_only] ? examine(mb) : select(mb)
+    end
   end
 
   # Gets the SSL status.
@@ -275,11 +275,8 @@ class Larch::IMAP
 
     if @conn.greeting.data.text =~ /^Gimap ready/
       @quirks[:gmail] = true
-#      debug "looks like Gmail"
-
     elsif host =~ /^imap(?:-ssl)?\.mail\.yahoo\.com$/
       @quirks[:yahoo] = true
-#      debug "looks like Yahoo! Mail"
     end
   end
 

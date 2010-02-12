@@ -7,5 +7,5 @@ module Larch
 end
 
 require 'larch/imap'
-require 'larch/imap_client'
+# require 'larch/imap_client'
 require 'larch/connection_pool'
