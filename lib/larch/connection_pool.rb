@@ -63,19 +63,35 @@ class Larch::ConnectionPool
     raise ArgumentError, ':pool_timeout must be positive' if @pool_timeout < 1
   end
 
-  # Removes all connections currently available on all servers, optionally
-  # yielding each connection to the given block before disconnecting it. Does
-  # not remove connections that are currently allocated.
-  def disconnect(&block)
+  # Removes all connections currently available for the specified _uri_, or for
+  # all URIs if none is specified, optionally yielding each connection to the
+  # given block before disconnecting it. Does not remove connections that are
+  # currently allocated.
+  def disconnect(uri = nil, &block)
+    unless uri.nil?
+      uri = uri.is_a?(URI) ? uri : URI(uri)
+    end
+
     sync do
-      @available.each_value do |connections|
+      if uri
+        connections = @available[uri] || []
+
         connections.each do |conn|
           block.call(conn) if block
           conn.disconnect
         end
-      end
 
-      @available.clear
+        connections.clear
+      else
+        @available.each_value do |connections|
+          connections.each do |conn|
+            block.call(conn) if block
+            conn.disconnect
+          end
+        end
+
+        @available.clear
+      end
     end
   end
 
