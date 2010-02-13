@@ -1,7 +1,7 @@
 # The Larch::IMAP class is a delegating wrapper for (but not a subclass of) the
 # Net::IMAP class.
 class Larch::IMAP
-  attr_reader :capability, :options, :quirks, :uri
+  attr_reader :capability, :options, :quirks, :response_handlers, :uri
 
   def self.const_missing(name)
     unless Net::IMAP.const_defined?(name)
@@ -55,19 +55,24 @@ class Larch::IMAP
 
     Larch::IMAP.validate_uri(@uri)
 
-    @authenticated = false
-    @capability    = []
-    @conn          = nil # Net::IMAP instance
-    @delim         = nil # mailbox hierarchy delimiter
-    @options       = {:max_retries => 3, :ssl_verify => false}.merge(options)
-    @quirks        = {}
+    @authenticated     = false
+    @capability        = []
+    @conn              = nil # Net::IMAP instance
+    @delim             = nil # mailbox hierarchy delimiter
+    @options           = {:max_retries => 3, :ssl_verify => false}.merge(options)
+    @quirks            = {}
+    @response_handlers = []
 
     # Net::IMAP instance methods that don't require authentication.
     @noauth = [
-      :add_response_handler, :capability, :client_thread, :greeting, :login,
-      :logout, :remove_response_handler, :response_handlers, :responses,
+      :capability, :client_thread, :greeting, :login, :logout, :responses,
       :starttls
     ]
+  end
+
+  # Adds a response handler. See Net::IMAP#add_response_handler for details.
+  def add_response_handler(handler = Proc.new)
+    @response_handlers.push(handler)
   end
 
   # Logs into the IMAP server using the best available authentication method and
@@ -130,6 +135,11 @@ class Larch::IMAP
     connected? && @authenticated
   end
 
+  # Removes all response handlers.
+  def clear_response_handlers
+    @response_handlers.clear
+  end
+
   # Sends a CLOSE command to close the currently selected mailbox. If the
   # mailbox is in read/write mode (SELECTed), the CLOSE command will permanently
   # expunge all messages with the <code>\Deleted</code> flag set.
@@ -148,6 +158,8 @@ class Larch::IMAP
     @conn = Net::IMAP.new(host, port, ssl?,
         ssl? && @options[:ssl_verify] ? options[:ssl_certs] : nil,
         @options[:ssl_verify])
+
+    @conn.add_response_handler(method(:handle_response))
 
     check_quirks
 
@@ -220,7 +232,9 @@ class Larch::IMAP
       raise NoMethodError, "undefined method `#{name}' for Larch::IMAP"
     end
 
+    require_connection
     require_auth unless @noauth.include?(name)
+
     @conn.send(name, *args, &block)
   end
 
@@ -232,6 +246,11 @@ class Larch::IMAP
   # Gets the IMAP port number.
   def port
     @uri.port || (ssl? ? 993 : 143)
+  end
+
+  # Removes the specified response handler.
+  def remove_response_handler(handler)
+    @response_handlers.delete(handler)
   end
 
   # Connects, authenticates, opens the mailbox specified in the URI (if any),
@@ -322,6 +341,12 @@ class Larch::IMAP
     elsif host =~ /^imap(?:-ssl)?\.mail\.yahoo\.com$/
       @quirks[:yahoo] = true
     end
+  end
+
+  # Handles incoming IMAP responses and dispatches them to other registered
+  # response handlers.
+  def handle_response(response)
+    @response_handlers.each {|handler| handler.call(response) }
   end
 
   def require_connection

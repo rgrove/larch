@@ -206,6 +206,7 @@ class Larch::ConnectionPool
     allocated_hash = @allocated[mailbox_key] || {}
 
     if conn = allocated_hash.delete(thread)
+      conn.clear_response_handlers
       @allocated.delete(mailbox_key) if allocated_hash.empty?
       (@available[Larch::ConnectionPool.uri_key_server(uri)] ||= []) << conn
     end
