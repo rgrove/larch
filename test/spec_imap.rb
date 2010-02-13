@@ -15,11 +15,11 @@ describe 'Larch::IMAP (disconnected)' do
     Larch::IMAP::SEEN.should.equal(Net::IMAP::SEEN)
   end
 
-  it '#new should raise an ArgumentError when an invalid URI is specified' do
+  it '#new should raise a Larch::IMAP::InvalidURI exception when an invalid URI is specified' do
     should.raise(ArgumentError) { Larch::IMAP.new }
-    should.raise(ArgumentError) { Larch::IMAP.new('http://user:pass@example.com') }
-    should.raise(ArgumentError) { Larch::IMAP.new('imap://example.com') }
-    should.not.raise(ArgumentError) { Larch::IMAP.new('imap://user:pass@example.com') }
+    should.raise(Larch::IMAP::InvalidURI) { Larch::IMAP.new('http://user:pass@example.com') }
+    should.raise(Larch::IMAP::InvalidURI) { Larch::IMAP.new('imap://example.com') }
+    should.not.raise(Larch::IMAP::InvalidURI) { Larch::IMAP.new('imap://user:pass@example.com') }
   end
 
   it '#authenticate should raise Larch::IMAP::NotConnected' do

@@ -93,6 +93,7 @@ class Larch::ConnectionPool
   # thread without blocking.
   def hold(uri)
     uri = uri.is_a?(URI) ? uri : URI(uri)
+    Larch::IMAP.validate_uri(uri)
 
     thread = Thread.current
 

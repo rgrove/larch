@@ -11,6 +11,14 @@ class Larch::IMAP
     Net::IMAP.const_get(name)
   end
 
+  # Validates the specified IMAP _uri_ (which must be a URI instance) and raises
+  # a Larch::IMAP::InvalidURI exception if it's not a valid IMAP URI.
+  def self.validate_uri(uri)
+    raise InvalidURI, "not a valid IMAP URI: #{uri}" unless uri.scheme == 'imap' || uri.scheme == 'imaps'
+    raise InvalidURI, "URI must include a host" unless uri.host
+    raise InvalidURI, "URI must include a username and password" unless uri.user && uri.password
+  end
+
   # Creates a new Larch::IMAP object, but doesn't open a connection.
   #
   # The _uri_ parameter must be an IMAP URI with an 'imap' or 'imaps' scheme,
@@ -45,9 +53,7 @@ class Larch::IMAP
   def initialize(uri, options = {})
     @uri = uri.is_a?(URI) ? uri : URI(uri)
 
-    raise ArgumentError, "not a valid IMAP URI: #{uri}" unless @uri.scheme == 'imap' || @uri.scheme == 'imaps'
-    raise ArgumentError, "URI must include a host" unless @uri.host
-    raise ArgumentError, "URI must include a username and password" unless @uri.user && @uri.password
+    Larch::IMAP.validate_uri(@uri)
 
     @authenticated = false
     @capability    = []
@@ -350,6 +356,7 @@ class Larch::IMAP
   end
 
   class Error < Larch::Error; end
+  class InvalidURI < Error; end
   class NoSupportedAuthMethod < Error; end
   class NotAuthenticated < Error; end
   class NotConnected < Error; end
