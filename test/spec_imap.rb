@@ -87,6 +87,11 @@ end
 describe 'Larch::IMAP (connected)' do
   imap = Larch::IMAP.new(CONNECTED_URI)
 
+  ok_response = lambda do |response|
+    response.is_a?(Net::IMAP::TaggedResponse) &&
+        response.name == 'OK'
+  end
+
   it '#authenticate should require a connection' do
     should.raise(Larch::IMAP::NotConnected) { imap.authenticate }
   end
@@ -121,35 +126,26 @@ describe 'Larch::IMAP (connected)' do
 
   it '#examine should open the INBOX' do
     imap.mailbox.should.be.nil
-
-    imap.examine('INBOX').should.satisfy do |response|
-      response.is_a?(Net::IMAP::TaggedResponse) &&
-          response.name == 'OK'
-    end
-
+    imap.examine('INBOX').should.be(ok_response)
     imap.mailbox.should.equal('INBOX')
   end
 
   it '#close should close the INBOX' do
     imap.mailbox.should.equal('INBOX')
-
-    imap.close.should.satisfy do |response|
-      response.is_a?(Net::IMAP::TaggedResponse) &&
-          response.name == 'OK'
-    end
-
+    imap.close.should.be(ok_response)
     imap.mailbox.should.be.nil
   end
 
   it '#select should open the INBOX' do
     imap.mailbox.should.be.nil
-
-    imap.select('INBOX').should.satisfy do |response|
-      response.is_a?(Net::IMAP::TaggedResponse) &&
-          response.name == 'OK'
-    end
-
+    imap.select('INBOX').should.be(ok_response)
     imap.mailbox.should.equal('INBOX')
+  end
+
+  it '#unselect should close the INBOX without expunging' do
+    imap.mailbox.should.equal('INBOX')
+    imap.unselect.should.be(ok_response)
+    imap.mailbox.should.be.nil
   end
 
   it '#translate_delim should translate mailbox hierarchy delimiters' do

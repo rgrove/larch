@@ -322,6 +322,29 @@ class Larch::IMAP
     mailbox.gsub(delim, self.delim)
   end
 
+  # Closes the current mailbox, if any, without expunging deleted messages. This
+  # method sends the UNSELECT command if the server supports it; otherwise, it
+  # EXAMINEs the current mailbox to make it read-only, then CLOSEs it.
+  def unselect
+    require_auth
+    return if mailbox.nil?
+
+    response = if @capability.include?('UNSELECT')
+      # Use the UNSELECT command to close the mailbox without expunging. See
+      # RFC 3691: http://www.networksorcery.com/enp/rfc/rfc3691.txt
+      @conn.instance_eval { send_command('UNSELECT') }
+    else
+      # Server doesn't support UNSELECT, so just EXAMINE the current mailbox and
+      # then CLOSE it.
+      examine(mailbox(true))
+      close
+    end
+
+    @uri.path = ''
+
+    response
+  end
+
   # Gets the IMAP username.
   def username
     CGI.unescape(@uri.user)
