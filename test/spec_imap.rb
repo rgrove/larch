@@ -115,6 +115,10 @@ describe 'Larch::IMAP (connected)' do
     imap.authenticate.should.be.true
   end
 
+  it '#delim should get the mailbox hierarchy delimiter' do
+    imap.delim.should.equal('.')
+  end
+
   it '#examine should open the INBOX' do
     imap.mailbox.should.be.nil
 
@@ -146,6 +150,11 @@ describe 'Larch::IMAP (connected)' do
     end
 
     imap.mailbox.should.equal('INBOX')
+  end
+
+  it '#translate_delim should translate mailbox hierarchy delimiters' do
+    imap.translate_delim('foo/bar/baz').should.equal('foo.bar.baz')
+    imap.translate_delim('foo_bar_baz', '_').should.equal('foo.bar.baz')
   end
 
   it '#disconnect should disconnect' do

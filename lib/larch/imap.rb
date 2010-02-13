@@ -51,7 +51,8 @@ class Larch::IMAP
 
     @authenticated = false
     @capability    = []
-    @conn          = nil
+    @conn          = nil # Net::IMAP instance
+    @delim         = nil # mailbox hierarchy delimiter
     @options       = {:max_retries => 3, :ssl_verify => false}.merge(options)
     @quirks        = {}
 
@@ -161,6 +162,13 @@ class Larch::IMAP
   # Returns +true+ if connected to the server.
   def connected?
     !disconnected?
+  end
+
+  # Gets the server's mailbox hierarchy delimiter, defaulting to '.' if the
+  # server doesn't want to tell us what its preferred delimiter is.
+  def delim
+    require_auth
+    @delim ||= @conn.list('', '')[0].delim || '.'
   end
 
   # Disconnects from the server.
@@ -281,6 +289,12 @@ class Larch::IMAP
   # Gets the SSL status.
   def ssl?
     @uri.scheme == 'imaps'
+  end
+
+  # Translates all occurrences of the specified hierarchy delimiter in the given
+  # _mailbox_ name into the hierarchy delimiter supported by this connection.
+  def translate_delim(mailbox, delim = '/')
+    mailbox.gsub(delim, self.delim)
   end
 
   # Gets the IMAP username.
