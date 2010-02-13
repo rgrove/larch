@@ -67,21 +67,39 @@ class Larch::IMAP
   # the username and password specified in the current URI. Returns +false+ if
   # not connected, +true+ if authentication was successful or if already
   # authenticated.
+  #
+  # The following authentication methods will be tried, in this order, if the
+  # server claims to support them:
+  #
+  #   - CRAM-MD5
+  #   - LOGIN
+  #   - PLAIN
+  #
+  # If the server does not support any of these authentication methods, a
+  # Larch::IMAP::NoSupportedAuthMethod exception will be raised.
   def authenticate
     raise NotConnected, "must connect before authenticating" if disconnected?
     return true if @authenticated
 
-    auth_methods  = ['PLAIN']
+    auth_methods  = []
     methods_tried = []
 
-    ['LOGIN', 'CRAM-MD5'].each do |method|
+    ['PLAIN', 'LOGIN', 'CRAM-MD5'].each do |method|
       auth_methods << method if @capability.include?("AUTH=#{method}")
+    end
+
+    # Remove PLAIN and LOGIN from the list if the capability list includes
+    # LOGINDISABLED, in order to avoid sending the user's credentials in the
+    # clear when we know the server won't accept them.
+    if @capability.include?('LOGINDISABLED')
+      auth_methods.delete('PLAIN')
+      auth_methods.delete('LOGIN')
     end
 
     begin
       methods_tried << method = auth_methods.pop
 
-      if method == 'PLAIN'
+      response = if method == 'PLAIN'
         @conn.login(username, password)
       else
         @conn.authenticate(method, username, password)
@@ -94,6 +112,8 @@ class Larch::IMAP
 
       raise e, "#{e.message} (tried #{methods_tried.join(', ')})"
     end
+
+    update_capability(response)
 
     @authenticated = true
   end
@@ -130,7 +150,11 @@ class Larch::IMAP
       @conn.instance_eval { send_command('ID ("guid" "1")') }
     end
 
-    @capability = @conn.capability
+    # Capability check must come after the Yahoo! hack, since Yahoo! doesn't
+    # send a capability list in the greeting or respond to CAPABILITY before the
+    # hack.
+    update_capability(@conn.greeting)
+
     true
   end
 
@@ -280,11 +304,39 @@ class Larch::IMAP
     end
   end
 
-  def require_auth
+  def require_connection
     raise NotConnected, "not connected" unless connected?
+  end
+
+  def require_auth
+    require_connection
     raise NotAuthenticated, "not authenticated" unless authenticated?
   end
 
-  class NotAuthenticated < Larch::Error; end
-  class NotConnected < Larch::Error; end
+  # Looks for a capability list in the specified IMAP _response_, or sends a
+  # CAPABILITY request if no response is given or if the given response doesn't
+  # contain a capability list.
+  #
+  # Updates @capability with the results and returns it.
+  def update_capability(response = nil)
+    if response.is_a?(Net::IMAP::UntaggedResponse) ||
+        response.is_a?(Net::IMAP::TaggedResponse)
+
+      if (data = response.data).is_a?(Net::IMAP::ResponseText) &&
+          data.code.is_a?(Net::IMAP::ResponseCode) &&
+          data.code.name == 'CAPABILITY'
+
+        return @capability = data.code.data.split(' ')
+      end
+    end
+
+    require_connection
+
+    @capability = @conn.capability
+  end
+
+  class Error < Larch::Error; end
+  class NoSupportedAuthMethod < Error; end
+  class NotAuthenticated < Error; end
+  class NotConnected < Error; end
 end
