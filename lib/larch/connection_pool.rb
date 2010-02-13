@@ -159,6 +159,8 @@ class Larch::ConnectionPool
     sync do
       if conn = available_connection(uri)
         (@allocated[Larch::ConnectionPool.uri_key_mailbox(uri)] ||= {})[thread] = conn
+        conn.start
+        conn
       end
     end
   end
