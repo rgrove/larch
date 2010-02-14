@@ -1,9 +1,54 @@
 # The Larch::IMAP class is a delegating wrapper for (but not a subclass of) the
 # Net::IMAP class.
+#
+# Larch::IMAP automatically translates mailbox names in method arguments to
+# modified UTF-7 strings before sending them to the server, so you should always
+# use UTF-8 for mailbox names. Mailbox names returned from the server are not
+# automatically translated, however.
 class Larch::IMAP
-  attr_reader :capability, :options, :quirks, :response_handlers, :uri
+  # Net::IMAP instance methods that don't require authentication.
+  NOAUTH_METHODS = [
+    :capability, :client_thread, :greeting, :login, :logout, :responses,
+    :starttls
+  ]
 
-  def self.const_missing(name)
+  # Net::IMAP instance methods that are wrapped by Larch::IMAP::Mailbox and
+  # shouldn't be called directly.
+  MAILBOX_METHODS = [
+    :check, :close, :expunge, :fetch, :search, :sort, :store, :thread,
+    :uid_fetch, :uid_search, :uid_sort, :uid_store, :uid_thread
+  ]
+
+  # Array of strings representing the server's advertised capabilities.
+  attr_reader :capability
+
+  # Larch::IMAP::Mailbox object representing the currently-open mailbox, or
+  # +nil+ if no mailbox is open.
+  attr_reader :mailbox
+
+  # Hash of options specified when this Larch::IMAP object was instantiated.
+  attr_reader :options
+
+  # Hash of bools indicating whether or not this server has certain known quirks
+  # that Larch::IMAP will try to work around.
+  #
+  # Possible keys include:
+  #
+  # [:gmail]
+  #   Server appears to be Gmail.
+  #
+  # [:yahoo]
+  #   Server appears to be Yahoo! Mail.
+  attr_reader :quirks
+
+  # Array of registered response handlers that will be called whenever an IMAP
+  # response is received.
+  attr_reader :response_handlers
+
+  # URI for this connection.
+  attr_reader :uri
+
+  def self.const_missing(name) # :nodoc:
     unless Net::IMAP.const_defined?(name)
       raise NameError, "uninitialized constant Larch::IMAP::#{name}"
     end
@@ -22,13 +67,8 @@ class Larch::IMAP
   # Creates a new Larch::IMAP object, but doesn't open a connection.
   #
   # The _uri_ parameter must be an IMAP URI with an 'imap' or 'imaps' scheme,
-  # a username and password, and a hostname at a minimum. Unless a custom port
-  # is specified, port 143 will be used for 'imap' and port 993 for 'imaps'.
-  #
-  # The path portion of the URI may be used to specify an IMAP mailbox that
-  # should be selected by default. The '/' character in the path will be
-  # translated automatically into whatever mailbox hierarchy delimiter the
-  # server claims to support.
+  # a username and password, and a hostname. Unless a custom port is specified,
+  # port 143 will be used for 'imap' and port 993 for 'imaps'.
   #
   # In addition to the URI, the following options may be specified as hash
   # params:
@@ -36,9 +76,6 @@ class Larch::IMAP
   # [:max_retries]
   #   After a recoverable error occurs, retry the operation up to this many
   #   times. Default is 3.
-  #
-  # [:read_only]
-  #   Open mailboxes in read-only mode (EXAMINE) by default.
   #
   # [:ssl_certs]
   #   Path to a trusted certificate bundle to use to verify server SSL
@@ -59,15 +96,10 @@ class Larch::IMAP
     @capability        = []
     @conn              = nil # Net::IMAP instance
     @delim             = nil # mailbox hierarchy delimiter
+    @mailbox           = nil
     @options           = {:max_retries => 3, :ssl_verify => false}.merge(options)
     @quirks            = {}
     @response_handlers = []
-
-    # Net::IMAP instance methods that don't require authentication.
-    @noauth = [
-      :capability, :client_thread, :greeting, :login, :logout, :responses,
-      :starttls
-    ]
   end
 
   # Adds a response handler. See Net::IMAP#add_response_handler for details.
@@ -76,9 +108,7 @@ class Larch::IMAP
   end
 
   # Logs into the IMAP server using the best available authentication method and
-  # the username and password specified in the current URI. Returns +false+ if
-  # not connected, +true+ if authentication was successful or if already
-  # authenticated.
+  # the username and password specified in the URI.
   #
   # The following authentication methods will be tried, in this order, if the
   # server claims to support them:
@@ -90,8 +120,8 @@ class Larch::IMAP
   # If the server does not support any of these authentication methods, a
   # Larch::IMAP::NoSupportedAuthMethod exception will be raised.
   def authenticate
-    raise NotConnected, "must connect before authenticating" if disconnected?
-    return true if @authenticated
+    raise NotConnected, "must connect before authenticating" unless connected?
+    return true if authenticated?
 
     auth_methods  = []
     methods_tried = []
@@ -140,20 +170,11 @@ class Larch::IMAP
     @response_handlers.clear
   end
 
-  # Sends a CLOSE command to close the currently selected mailbox. If the
-  # mailbox is in read/write mode (SELECTed), the CLOSE command will permanently
-  # expunge all messages with the <code>\Deleted</code> flag set.
-  def close
-    require_auth
-    response = @conn.close
-    @uri.path = ''
-    response
-  end
-
   # Opens a connection to the IMAP server. If a connection is already open, it
   # will be closed and reopened.
   def connect
     @authenticated = false
+    mailbox_closed if @mailbox
 
     @conn = Net::IMAP.new(host, port, ssl?,
         ssl? && @options[:ssl_verify] ? options[:ssl_certs] : nil,
@@ -192,9 +213,10 @@ class Larch::IMAP
   # Disconnects from the server.
   def disconnect
     if connected?
-      @authenticated = false
       @conn.disconnect
       @conn = nil
+      @authenticated = false
+      mailbox_closed if @mailbox
     end
   end
 
@@ -204,14 +226,14 @@ class Larch::IMAP
   end
 
   # Sends an EXAMINE command to select the specified _mailbox_. Works just like
-  # #select, except the mailbox is opened in read-only mode.
+  # #select, except the mailbox is opened in read-only mode. The _mailbox_
+  # parameter should be a UTF-8 string. It will be converted to UTF-7
+  # automatically.
   def examine(mailbox)
     require_auth
-
-    response  = @conn.examine(mailbox)
-    @uri.path = "/#{CGI.escape(Net::IMAP.decode_utf7(mailbox))}"
-
-    response
+    mailbox = Net::IMAP.encode_utf7(mailbox)
+    @conn.examine(mailbox)
+    mailbox_factory(mailbox, :read_only => true)
   end
 
   # Gets the IMAP hostname.
@@ -219,21 +241,14 @@ class Larch::IMAP
     @uri.host
   end
 
-  # Gets the current IMAP mailbox, or +nil+ if there isn't one. If _utf7_ is
-  # +true+, the mailbox will be returned as a modified UTF-7 string.
-  def mailbox(utf7 = false)
-    mb = @uri.path[1..-1]
-    mb = mb.nil? || mb.empty? ? nil : CGI.unescape(mb)
-    mb && utf7 ? Net::IMAP.encode_utf7(mb) : mb
-  end
-
-  def method_missing(name, *args, &block)
-    unless Net::IMAP.method_defined?(name)
+  def method_missing(name, *args, &block) # :nodoc:
+    if !Net::IMAP.method_defined?(name) ||
+        Larch::IMAP::MAILBOX_METHODS.include?(name)
       raise NoMethodError, "undefined method `#{name}' for Larch::IMAP"
     end
 
     require_connection
-    require_auth unless @noauth.include?(name)
+    require_auth unless Larch::IMAP::NOAUTH_METHODS.include?(name)
 
     @conn.send(name, *args, &block)
   end
@@ -253,9 +268,9 @@ class Larch::IMAP
     @response_handlers.delete(handler)
   end
 
-  # Connects, authenticates, opens the mailbox specified in the URI (if any),
-  # executes the given block, retries if a recoverable error occurs, raises an
-  # exception if an unrecoverable error occurs.
+  # Connects and authenticates if necessary, executes the given block, retries
+  # if a recoverable error occurs, raises an exception if an unrecoverable error
+  # occurs.
   def safely
     retries = 0
 
@@ -283,6 +298,7 @@ class Larch::IMAP
 
       @conn          = nil
       @authenticated = false
+      mailbox_closed if @mailbox
 
       sleep 1 * retries
       retry
@@ -292,23 +308,16 @@ class Larch::IMAP
   # Sends a SELECT command to select the specified _mailbox_.
   def select(mailbox)
     require_auth
-
-    response  = @conn.select(mailbox)
-    @uri.path = "/#{CGI.escape(Net::IMAP.decode_utf7(mailbox))}"
-
-    response
+    mailbox = Net::IMAP.encode_utf7(mailbox)
+    @conn.select(mailbox)
+    mailbox_factory(mailbox)
   end
 
-  # Starts an IMAP session by connecting, authenticating, and opening the
-  # mailbox specified in the current URI (if any). If already connected and
-  # authenticated, this method will simply attempt to open the mailbox.
+  # Starts an IMAP session by connecting and authenticating. If already
+  # connected and authenticated, this method does nothing.
   def start
     connect unless connected?
     authenticate unless authenticated?
-
-    if mb = mailbox(true)
-      @options[:read_only] ? examine(mb) : select(mb)
-    end
   end
 
   # Gets the SSL status.
@@ -317,32 +326,9 @@ class Larch::IMAP
   end
 
   # Translates all occurrences of the specified hierarchy delimiter in the given
-  # _mailbox_ name into the hierarchy delimiter supported by this connection.
-  def translate_delim(mailbox, delim = '/')
-    mailbox.gsub(delim, self.delim)
-  end
-
-  # Closes the current mailbox, if any, without expunging deleted messages. This
-  # method sends the UNSELECT command if the server supports it; otherwise, it
-  # EXAMINEs the current mailbox to make it read-only, then CLOSEs it.
-  def unselect
-    require_auth
-    return if mailbox.nil?
-
-    response = if @capability.include?('UNSELECT')
-      # Use the UNSELECT command to close the mailbox without expunging. See
-      # RFC 3691: http://www.networksorcery.com/enp/rfc/rfc3691.txt
-      @conn.instance_eval { send_command('UNSELECT') }
-    else
-      # Server doesn't support UNSELECT, so just EXAMINE the current mailbox and
-      # then CLOSE it.
-      examine(mailbox(true))
-      close
-    end
-
-    @uri.path = ''
-
-    response
+  # mailbox _name_ into the hierarchy delimiter supported by this connection.
+  def translate_delim(name, delim = '/')
+    name.gsub(delim, self.delim)
   end
 
   # Gets the IMAP username.
@@ -370,6 +356,28 @@ class Larch::IMAP
   # response handlers.
   def handle_response(response)
     @response_handlers.each {|handler| handler.call(response) }
+  end
+
+  # Called by a Larch::IMAP::Mailbox instance to let us know that the mailbox it
+  # represents has been closed or unselected and that we should kill the Mailbox
+  # instance.
+  def mailbox_closed
+    @mailbox = nil
+  end
+
+  # Creates a new Larch::IMAP::Mailbox object mixing in the specified options,
+  # assigns it to @mailbox, and returns it.
+  def mailbox_factory(name, options = {})
+    options = {
+      :close_handler => method(:mailbox_closed),
+      :connection    => @conn,
+      :delim         => delim,
+      :imap          => self,
+      :read_only     => false
+    }.merge(options)
+
+    @mailbox.instance_eval { self_destruct } if @mailbox
+    @mailbox = Larch::IMAP::Mailbox.new(name, options)
   end
 
   def require_connection
@@ -405,6 +413,7 @@ class Larch::IMAP
 
   class Error < Larch::Error; end
   class InvalidURI < Error; end
+  class MailboxClosed < Error; end
   class NoSupportedAuthMethod < Error; end
   class NotAuthenticated < Error; end
   class NotConnected < Error; end

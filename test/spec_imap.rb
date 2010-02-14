@@ -6,7 +6,7 @@ require 'larch'
 # test server.
 
 CONNECTED_URI    = URI('imap://larchtest:larchtest@larchtest')
-DISCONNECTED_URI = URI('imap://user:pass@example.com/mailbox')
+DISCONNECTED_URI = URI('imap://user:pass@example.com')
 
 describe 'Larch::IMAP (disconnected)' do
   imap = Larch::IMAP.new(DISCONNECTED_URI)
@@ -42,11 +42,6 @@ describe 'Larch::IMAP (disconnected)' do
     imap.host.should.equal(DISCONNECTED_URI.host)
   end
 
-  it '#mailbox should return the mailbox' do
-    imap.mailbox.should.equal('mailbox')
-    Larch::IMAP.new('imap://user:pass@example.com').mailbox.should.be.nil
-  end
-
   it '#password should return the password' do
     imap.password.should.equal(CGI.unescape(DISCONNECTED_URI.password))
   end
@@ -74,22 +69,23 @@ describe 'Larch::IMAP (disconnected)' do
   end
 end
 
+ok_response = lambda do |response|
+  response.is_a?(Net::IMAP::TaggedResponse) &&
+      response.name == 'OK'
+end
+
 describe 'Larch::IMAP (safely)' do
   should 'safely connect, authenticate, and send a NOOP command' do
     imap = Larch::IMAP.new(CONNECTED_URI)
-    imap.safely { imap.noop }.should.satisfy do |response|
-      response.is_a?(Net::IMAP::TaggedResponse) &&
-          response.name == 'OK'
-    end
+    imap.safely { imap.noop }.should.be(ok_response)
   end
 end
 
 describe 'Larch::IMAP (connected)' do
   imap = Larch::IMAP.new(CONNECTED_URI)
 
-  ok_response = lambda do |response|
-    response.is_a?(Net::IMAP::TaggedResponse) &&
-        response.name == 'OK'
+  inbox = lambda do |mb|
+    mb.is_a?(Larch::IMAP::Mailbox) && mb.name == 'INBOX'
   end
 
   it '#authenticate should require a connection' do
@@ -126,26 +122,17 @@ describe 'Larch::IMAP (connected)' do
 
   it '#examine should open the INBOX' do
     imap.mailbox.should.be.nil
-    imap.examine('INBOX').should.be(ok_response)
-    imap.mailbox.should.equal('INBOX')
-  end
-
-  it '#close should close the INBOX' do
-    imap.mailbox.should.equal('INBOX')
-    imap.close.should.be(ok_response)
-    imap.mailbox.should.be.nil
+    imap.examine('INBOX').should.be(inbox)
+    imap.mailbox.should.be(inbox)
+    imap.mailbox.read_only.should.be.true
+    imap.mailbox.close
   end
 
   it '#select should open the INBOX' do
     imap.mailbox.should.be.nil
-    imap.select('INBOX').should.be(ok_response)
-    imap.mailbox.should.equal('INBOX')
-  end
-
-  it '#unselect should close the INBOX without expunging' do
-    imap.mailbox.should.equal('INBOX')
-    imap.unselect.should.be(ok_response)
-    imap.mailbox.should.be.nil
+    imap.select('INBOX').should.be(inbox)
+    imap.mailbox.should.be(inbox)
+    imap.mailbox.read_only.should.be.false
   end
 
   it '#translate_delim should translate mailbox hierarchy delimiters' do

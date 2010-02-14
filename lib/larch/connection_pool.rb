@@ -156,7 +156,11 @@ class Larch::ConnectionPool
   def release(thread)
     if conn = @allocated.delete(thread)
       conn.clear_response_handlers
-      conn.unselect
+
+      if conn.mailbox
+        conn.mailbox.unselect
+      end
+
       @available << conn
     end
   end

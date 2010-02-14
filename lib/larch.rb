@@ -11,4 +11,5 @@ require 'larch/monkeypatch/net/imap'
 
 require 'larch/connection_pool'
 require 'larch/imap'
+require 'larch/imap/mailbox'
 require 'larch/imap_client'
