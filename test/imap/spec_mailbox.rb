@@ -5,8 +5,6 @@ require 'larch'
 # plan to eventually provide a VirtualBox VM image containing a fully-configured
 # test server.
 
-Net::IMAP.debug=true
-
 describe 'Larch::IMAP::Mailbox' do
   imap = Larch::IMAP.new('imap://larchtest:larchtest@larchtest')
   imap.start
