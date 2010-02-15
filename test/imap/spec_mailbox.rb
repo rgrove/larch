@@ -18,6 +18,11 @@ describe 'Larch::IMAP::Mailbox' do
         response.name == 'OK'
   end
 
+  fetch_data = lambda do |messages|
+    messages.is_a?(Array) &&
+        messages.all? {|m| m.is_a?(Net::IMAP::FetchData) }
+  end
+
   mailbox = imap.examine('INBOX')
 
   it '#check should request a checkpoint' do
@@ -41,12 +46,74 @@ describe 'Larch::IMAP::Mailbox' do
   #   imap.select('INBOX').expunge.should.be(ok_response)
   # end
 
-  it '#fetch should fetch messages' do
-    messages = imap.examine('INBOX').fetch(1..-1, 'UID', 'INTERNALDATE')
-    messages.should.be {|msgs| msgs.is_a?(Array) }
-    messages.should.satisfy {|msgs| msgs.all? {|msg| msg.is_a?(Net::IMAP::FetchData) }}
-    messages.first.attr.should.satisfy {|attr| attr.has_key?('INTERNALDATE') }
-    messages.first.attr.should.satisfy {|attr| attr.has_key?('UID') }
+  it '#fetch should fetch a wildcard range' do
+    messages = imap.examine('INBOX').fetch(1..-1, ['UID', 'INTERNALDATE'])
+    messages.should.be(fetch_data)
+    messages.length.should.be {|len| len > 1}
+
+    imap.mailbox.fetch(1..-1, ['UID', 'INTERNALDATE']) do |messages|
+      messages.should.be(fetch_data)
+      messages.length.should.be {|len| len > 1}
+    end
+
+    chunks = 0
+
+    imap.examine('small').fetch(1..-1, 'UID', 10) do |messages|
+      chunks += 1
+      messages.should.be(fetch_data)
+      messages.length.should.be {|len| len <= 10}
+    end
+
+    chunks.should.be {|c| c > 3 }
+  end
+
+  it '#fetch should fetch a finite range' do
+    messages = imap.examine('INBOX').fetch(1..200, 'UID')
+    messages.should.be(fetch_data)
+    messages.length.should.be {|len| len > 1}
+
+    imap.mailbox.fetch(1..200, 'UID') do |messages|
+      messages.should.be(fetch_data)
+      messages.length.should.be {|len| len > 1}
+    end
+
+    chunks = 0
+
+    imap.examine('small').fetch(1..200, 'UID', 10) do |messages|
+      chunks += 1
+      messages.should.be(fetch_data)
+      messages.length.should.be {|len| len <= 10}
+    end
+
+    chunks.should.be {|c| c > 3 }
+  end
+
+  it '#fetch should fetch a single UID' do
+    uid      = imap.examine('INBOX').fetch(1..-1, 'UID').first.attr['UID']
+    messages = imap.mailbox.fetch(uid, 'UID')
+    messages.should.be(fetch_data)
+    messages.length.should.equal(1)
+
+    imap.mailbox.fetch(uid, 'UID') do |messages|
+      messages.should.be(fetch_data)
+      messages.length.should.equal(1)
+    end
+  end
+
+  it '#fetch should fetch an Array of UIDs' do
+    uids = []
+    imap.examine('INBOX').fetch(1..-1, 'UID') do |messages|
+      messages.each {|msg| uids << msg.attr['UID'] }
+    end
+
+    messages = imap.mailbox.fetch(uids, 'UID')
+    messages.should.be(fetch_data)
+    messages.length.should.be {|len| len > 1 }
+
+    imap.mailbox.fetch(uids, 'UID') do |messages|
+      messages.should.be(fetch_data)
+      messages.length.should.be {|len| len > 1}
+    end
   end
 
   it '#name and #raw_name should be UTF-8, #raw_name_utf7 should be UTF-7' do

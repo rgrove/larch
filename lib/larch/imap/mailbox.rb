@@ -69,18 +69,56 @@ class Larch::IMAP::Mailbox
   # Sends a FETCH command to retrieve data associated with one or more messages
   # in this mailbox.
   #
-  # The _uid_set_ parameter should be a UID Number, an Array of UID Numbers, or
-  # a Range object representing a range of UIDs. To specify a wildcard fetch
-  # range like '1:*', use a Range with <code>-1</code> in place of the
-  # <code>*</code>, like <code>1..-1</code>
+  # The _uid_set_ parameter should be a UID, an Array of UIDs, or a Range of
+  # UIDs. To specify a wildcard fetch range like '1:*', use a Range with
+  # <code>-1</code> in place of the <code>*</code>, like <code>1..-1</code>
   #
   # The _attributes_ parameter is a list of message attributes to fetch. See
   # Net::IMAP::FetchData for a list of valid attributes.
   #
-  # This method returns an Array of Net::IMAP::FetchData objects.
-  def fetch(uid_set, *attributes)
+  # If a block is given, results will be yielded to the block in Arrays of up to
+  # <em>fetch_size</em> items until the fetch is complete. If no block is given,
+  # a single Array containing all fetched items will be returned.
+  def fetch(uid_set, attributes, fetch_size = 512)
     require_open
-    @conn.uid_fetch(uid_set, attributes)
+
+    # TODO: workaround for Gmail "some messages could not be fetched" error?
+
+    if !block_given? || uid_set.is_a?(Numeric) ||
+        (uid_set.is_a?(Range) && uid_set.last < 0)
+
+      data = @conn.uid_fetch(uid_set, attributes)
+
+      if block_given?
+        until (chunk = data.slice!(0, fetch_size)).empty?
+          yield chunk
+        end
+
+        return
+      else
+        return data || []
+      end
+    end
+
+    sets   = []
+    chunks = []
+
+    if uid_set.is_a?(Range)
+      pos = uid_set.min - 1
+
+      while pos < uid_set.max
+        sets << ((pos + 1)..[uid_set.max, pos += fetch_size].min)
+      end
+    elsif uid_set.is_a?(Array)
+      until (set = uid_set.slice!(0, fetch_size)).empty?
+        sets << set
+      end
+    end
+
+    sets.each do |set|
+      data = @conn.uid_fetch(set, attributes)
+      yield data unless data.nil?
+    end
   end
 
   # def peek
