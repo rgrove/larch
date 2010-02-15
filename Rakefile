@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'rake/clean'
 require 'rake/gempackagetask'
-require 'rake/rdoctask'
+require 'hanna/rdoctask'
 
 $:.unshift(File.join(File.dirname(File.expand_path(__FILE__)), 'lib'))
 $:.uniq!
@@ -24,6 +24,8 @@ gemspec = Gem::Specification.new do |s|
   # s.add_dependency('highline',     '~> 1.5.0')
   # s.add_dependency('trollop',      '~> 1.13')
 
+  s.add_development_dependency('hanna', '~> 0.1.12')
+
   s.files = FileList[
     'HISTORY',
     'LICENSE',
@@ -43,9 +45,10 @@ Rake::RDocTask.new do |rd|
   rd.title    = 'Larch Documentation'
   rd.rdoc_dir = 'doc'
 
-  rd.rdoc_files.include('README.rdoc', 'HISTORY', 'lib/**/*.rb')
+  rd.rdoc_files.include('README.rdoc', 'lib/**/*.rb')
 
-  rd.options << '--line-numbers' << '--inline-source'
+  rd.options << '--line-numbers' << '--inline-source' <<
+      '--webcvs=http://github.com/rgrove/larch/tree/refactor/'
 end
 
 desc 'generate an updated gemspec'
