@@ -40,6 +40,8 @@ Version 1.1.0 (git)
   * Fixed an issue when trying to copy a folder with leading or trailing
     whitespace in the name to Gmail, since Gmail doesn't allow whitespace around
     folder names.
+  * Fixed an issue with bogus Exchange STATUS responses containing trailing
+    spaces.
 
 Version 1.0.2 (2009-08-05)
   * Fixed a bug that caused Larch to try to set the read-only \Recent flag on

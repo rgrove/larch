@@ -1,16 +1,54 @@
-# Monkeypatch Net::IMAP in Ruby <= 1.9.1 to fix broken response handling,
-# particularly when changing mailboxes on a Dovecot 1.2+ server.
-#
-# This monkeypatch shouldn't be necessary in Ruby 1.9.2 and higher.
+# Monkeypatches for Net::IMAP.
 
-if RUBY_VERSION <= '1.9.1'
-  module Net # :nodoc:
-    class IMAP # :nodoc:
-      class ResponseParser # :nodoc:
-        private
+module Net # :nodoc:
+  class IMAP # :nodoc:
+    class ResponseParser # :nodoc:
+      private
 
-        # This monkeypatched method is the one included in Ruby 1.9 SVN trunk as
-        # of 2010-02-08.
+      # Fixes an issue with bogus STATUS responses from Exchange that contain
+      # trailing whitespace. This monkeypatch works cleanly against Ruby 1.8.x
+      # and 1.9.x.
+      def status_response
+        token = match(T_ATOM)
+        name = token.value.upcase
+        match(T_SPACE)
+        mailbox = astring
+        match(T_SPACE)
+        match(T_LPAR)
+        attr = {}
+        while true
+          token = lookahead
+          case token.symbol
+          when T_RPAR
+            shift_token
+            break
+          when T_SPACE
+            shift_token
+          end
+          token = match(T_ATOM)
+          key = token.value.upcase
+          match(T_SPACE)
+          val = number
+          attr[key] = val
+        end
+
+        # Monkeypatch starts here...
+        token = lookahead
+        shift_token if token.symbol == T_SPACE
+        # ...and ends here.
+
+        data = StatusData.new(mailbox, attr)
+        return UntaggedResponse.new(name, data, @str)
+      end
+
+      if RUBY_VERSION <= '1.9.1'
+
+        # Monkeypatches Net::IMAP in Ruby <= 1.9.1 to fix broken response
+        # handling, particularly when changing mailboxes on a Dovecot 1.2+
+        # server.
+        #
+        # This monkeypatch shouldn't be necessary in Ruby 1.9.2 and higher.
+        # It's included in Ruby 1.9 SVN trunk as of 2010-02-08.
         def resp_text_code
           @lex_state = EXPR_BEG
           match(T_LBRA)
@@ -44,5 +82,6 @@ if RUBY_VERSION <= '1.9.1'
       end
 
     end
+
   end
 end
