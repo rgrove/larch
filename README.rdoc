@@ -324,6 +324,13 @@ http://groups.google.com/group/larch
 First-time senders to the list are moderated to prevent spam, so there may be a
 delay before your first message shows up.
 
+== Contributors
+
+The following lovely people have contributed code to Larch:
+
+* Ryan Grove <ryan@wonko.com>
+* Andrew Hobson <ahobson@damballa.com>
+
 == Credit
 
 The Larch::IMAP class borrows heavily from Sup[http://sup.rubyforge.org] by
