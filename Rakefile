@@ -21,10 +21,14 @@ gemspec = Gem::Specification.new do |s|
   s.require_path          = 'lib'
   s.required_ruby_version = '>= 1.8.6'
 
-  # s.add_dependency('highline',     '~> 1.5.0')
-  # s.add_dependency('trollop',      '~> 1.13')
+  s.add_dependency('amalgalite', '~> 0.12')
+  s.add_dependency('sequel',     '~> 3.8')
+  # s.add_dependency('highline', '~> 1.5.0')
+  # s.add_dependency('trollop',  '~> 1.13')
 
+  s.add_development_dependency('bacon', '~> 1.1')
   s.add_development_dependency('hanna', '~> 0.1.12')
+  s.add_development_dependency('rake',  '~> 0.8')
 
   s.files = FileList[
     'HISTORY',
