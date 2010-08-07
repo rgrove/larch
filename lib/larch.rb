@@ -131,14 +131,11 @@ module Larch
       # Ensure that the database schema is up to date.
       migration_dir = File.join(LIB_DIR, 'db', 'migrate')
 
-      unless Sequel::Migrator.get_current_migration_version(db) ==
-          Sequel::Migrator.latest_migration_version(migration_dir)
-        begin
-          Sequel::Migrator.apply(db, migration_dir)
-        rescue => e
-          @log.fatal "unable to migrate message database: #{e}"
-          abort
-        end
+      begin
+        Sequel::Migrator.apply(db, migration_dir)
+      rescue => e
+        @log.fatal "unable to migrate message database: #{e}"
+        abort
       end
 
       require 'larch/db/message'
