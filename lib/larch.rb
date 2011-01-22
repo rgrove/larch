@@ -121,7 +121,7 @@ module Larch
       end
 
       begin
-        db = Sequel.sqlite(:database => filename)
+        db = Sequel.amalgalite(:database => filename)
         db.test_connection
       rescue => e
         @log.fatal "unable to open message database: #{e}"
