@@ -331,6 +331,7 @@ The following lovely people have contributed code to Larch:
 * Ryan Grove <ryan@wonko.com>
 * Andrew Hobson <ahobson@damballa.com>
 * Edgardo Hames <ehames@gmail.com>
+* Justin Mazzi <hh@mailheist.com>
 
 == Credit
 
