@@ -9,8 +9,8 @@ Larch is particularly well-suited for copying email to, from, or between Gmail
 accounts.
 
 *Author*::    Ryan Grove (mailto:ryan@wonko.com)
-*Version*::   1.1.0 (git)
-*Copyright*:: Copyright (c) 2010 Ryan Grove. All rights reserved.
+*Version*::   1.1.0 (2011-01-22)
+*Copyright*:: Copyright (c) 2011 Ryan Grove. All rights reserved.
 *License*::   GPL 2.0 (http://opensource.org/licenses/gpl-2.0.php)
 *Website*::   http://github.com/rgrove/larch
 
@@ -326,9 +326,10 @@ delay before your first message shows up.
 
 == Contributors
 
-The following lovely people have contributed code to Larch:
+Larch was created and is maintained by Ryan Grove <ryan@wonko.com>.
 
-* Ryan Grove <ryan@wonko.com>
+The following lovely people have also contributed to Larch:
+
 * Andrew Hobson <ahobson@damballa.com>
 * Edgardo Hames <ehames@gmail.com>
 * Justin Mazzi <hh@mailheist.com>
@@ -346,7 +347,7 @@ Gray II).
 
 == License
 
-Copyright (c) 2010 Ryan Grove <ryan@wonko.com>
+Copyright (c) 2011 Ryan Grove <ryan@wonko.com>
 
 Licensed under the GNU General Public License version 2.0.
 
