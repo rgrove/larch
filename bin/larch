@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+$0 = 'larch' # hide arguments from ps and top
+
 require 'rubygems'
 require 'highline/import' # optional dep: termios
 require 'trollop'
