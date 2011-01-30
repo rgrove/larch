@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 require 'bacon'
 require 'larch'
 
@@ -138,7 +140,7 @@ describe 'Larch::IMAP::Mailbox' do
     imap.mailbox.unselect.should.be(ok_response)
     imap.mailbox.should.be.nil
   end
-  
+
   it 'mailbox methods should raise Larch::IMAP::MailboxClosed after the mailbox is closed' do
     imap.select('INBOX')
     mailbox = imap.mailbox

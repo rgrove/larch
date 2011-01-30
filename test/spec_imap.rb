@@ -8,6 +8,16 @@ require 'larch'
 CONNECTED_URI    = URI('imap://larchtest:larchtest@larchtest')
 DISCONNECTED_URI = URI('imap://user:pass@example.com')
 
+describe 'Larch::IMAP.create_uri' do
+  should 'create a URI from a hash' do
+    uri = Larch::IMAP.create_uri({:host => 'example.com', :user => 'p@nts', :pass => 'p@ssword'})
+    uri.to_s.should.equal('imap://p%40nts:p%40ssword@example.com')
+
+    uri = Larch::IMAP.create_uri({:host => 'example.com', :username => 'a', :password => 'b', :port => 80, :ssl => true})
+    uri.to_s.should.equal('imaps://a:b@example.com:80')
+  end
+end
+
 describe 'Larch::IMAP (disconnected)' do
   imap = Larch::IMAP.new(DISCONNECTED_URI)
 

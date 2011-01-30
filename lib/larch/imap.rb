@@ -64,6 +64,24 @@ class Larch::IMAP
     Net::IMAP.const_get(name)
   end
 
+  # Creates an IMAP URI from the specified _hash_, which must contain at least a
+  # +:host+, +:user+, and +:pass+. It may also optionally contain +:port+ and
+  # +:ssl+ (a boolean).
+  def self.create_uri(hash)
+    raise ArgumentError, "host is required" unless hash.key?(:host) || hash.key?(:hostname)
+    raise ArgumentError, "user is required" unless hash.key?(:user) || hash.key?(:username)
+    raise ArgumentError, "password is required" unless hash.key?(:pass) || hash.key?(:password)
+
+    uri = URI("imap://#{hash[:host] || hash[:hostname]}")
+
+    uri.user     = CGI.escape(hash[:user] || hash[:username])
+    uri.password = CGI.escape(hash[:pass] || hash[:password])
+    uri.port     = hash[:port] if hash.key?(:port)
+    uri.scheme   = 'imaps' if hash[:ssl]
+
+    uri
+  end
+
   # Validates the specified IMAP _uri_ (which must be a URI instance) and raises
   # a Larch::IMAP::InvalidURI exception if it's not a valid IMAP URI.
   def self.validate_uri(uri)
