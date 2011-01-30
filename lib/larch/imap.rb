@@ -96,6 +96,7 @@ class Larch::IMAP
     @capability        = []
     @conn              = nil # Net::IMAP instance
     @delim             = nil # mailbox hierarchy delimiter
+    @log               = Larch::Logger.new(method(:log_prefix))
     @mailbox           = nil
     @options           = {:max_retries => 3, :ssl_verify => false}.merge(options)
     @quirks            = {}
@@ -177,7 +178,7 @@ class Larch::IMAP
     mailbox_closed if @mailbox
 
     @conn = Net::IMAP.new(host, port, ssl?,
-        ssl? && @options[:ssl_verify] ? options[:ssl_certs] : nil,
+        ssl? && @options[:ssl_verify] ? @options[:ssl_certs] : nil,
         @options[:ssl_verify])
 
     @conn.add_response_handler(method(:handle_response))
@@ -194,7 +195,6 @@ class Larch::IMAP
     # send a capability list in the greeting or respond to CAPABILITY before the
     # hack.
     update_capability(@conn.greeting)
-
     true
   end
 
@@ -356,6 +356,13 @@ class Larch::IMAP
   # response handlers.
   def handle_response(response)
     @response_handlers.each {|handler| handler.call(response) }
+  end
+
+  # Generates a prefix string for log messages.
+  def log_prefix
+    # TODO: indicate whether this connection is the source or the destination
+    # using [<] or [>].
+    @mailbox && @mailbox.raw_name ? "#{@mailbox.raw_name}:" : ""
   end
 
   # Called by a Larch::IMAP::Mailbox instance to let us know that the mailbox it
