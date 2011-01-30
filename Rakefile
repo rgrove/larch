@@ -20,7 +20,7 @@ gemspec = Gem::Specification.new do |s|
 
   s.executables           = ['larch']
   s.require_path          = 'lib'
-  s.required_ruby_version = '>= 1.8.6'
+  s.required_ruby_version = '>= 1.8.7'
 
   s.add_dependency('amalgalite', '~> 1.0.0')
   s.add_dependency('highline',   '~> 1.5.0')
