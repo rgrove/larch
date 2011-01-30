@@ -1,3 +1,5 @@
+require 'larch/connection_pool'
+
 class Larch::IMAPClient
   attr_reader :uri
 

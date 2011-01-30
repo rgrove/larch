@@ -3,7 +3,7 @@
 # Don't instantiate this class directly. Larch::IMAP::Mailbox instances are
 # created as needed by Larch::IMAP, and should be accessed via the
 # Larch::IMAP#mailbox attribute.
-class Larch::IMAP::Mailbox
+class Larch::IMAP; class Mailbox
   # Hierarchy delimiter for this mailbox.
   attr_reader :delim
 
@@ -122,7 +122,6 @@ class Larch::IMAP::Mailbox
   end
 
   # def peek
-  #   require_open
   # end
 
   # Sends a SEARCH command to search this mailbox for messages that match the
@@ -188,4 +187,4 @@ class Larch::IMAP::Mailbox
     @close_handler.call
     @closed = true
   end
-end
+end; end

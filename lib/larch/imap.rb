@@ -1,3 +1,11 @@
+require 'cgi'
+require 'net/imap'
+require 'uri'
+
+require 'larch/monkeypatch/net/imap'
+require 'larch/imap/mailbox'
+require 'larch/logger'
+
 # The Larch::IMAP class is a delegating wrapper for (but not a subclass of) the
 # Net::IMAP class.
 #

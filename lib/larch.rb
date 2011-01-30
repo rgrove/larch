@@ -1,16 +1,11 @@
-require 'cgi'
-require 'net/imap'
-require 'thread'
-require 'uri'
+module Larch
+  CONFIG_DIR     = File.expand_path('~/.larch')
+  LIB_DIR        = File.expand_path(File.join(File.dirname(__FILE__), 'larch'))
+  LIB_CONFIG_DIR = File.join(LIB_DIR, 'config')
 
-class Larch
   class Error < StandardError; end
 end
 
-require 'larch/monkeypatch/net/imap'
-
-require 'larch/connection_pool'
-require 'larch/imap'
-require 'larch/imap/mailbox'
 require 'larch/config'
 require 'larch/imap_client'
+require 'larch/version'

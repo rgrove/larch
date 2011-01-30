@@ -1,5 +1,11 @@
+require 'thread'
+require 'larch/imap'
+
 # Provides thread-safe and mailbox-aware connection pooling for IMAP connections
 # to a single server using Larch::IMAP.
+#
+# This implementation was heavily inspired by the pooling implementation in
+# Sequel.
 class Larch::ConnectionPool
   # Hash of currently allocated connections. Keys are threads, and each value
   # is a Larch::IMAP instance.
