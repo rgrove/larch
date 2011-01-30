@@ -35,7 +35,7 @@ gemspec = Gem::Specification.new do |s|
     'HISTORY',
     'LICENSE',
     'README.rdoc',
-    # 'bin/larch',
+    'bin/larch',
     'lib/**/*.rb'
   ]
 end

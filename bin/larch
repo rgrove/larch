@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+$0 = 'larch' # hide arguments from ps and top
+
+require 'larch'
+require 'larch/cli'
+
+module Larch
+  cli = CLI.new
+
+  
+end
