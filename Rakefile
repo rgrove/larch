@@ -1,7 +1,8 @@
 require 'rubygems'
+require 'hanna/rdoctask'
+require 'open-uri'
 require 'rake/clean'
 require 'rake/gempackagetask'
-require 'hanna/rdoctask'
 
 $:.unshift(File.join(File.dirname(File.expand_path(__FILE__)), 'lib'))
 $:.uniq!
@@ -55,7 +56,27 @@ Rake::RDocTask.new do |rd|
       '--webcvs=http://github.com/rgrove/larch/tree/refactor/'
 end
 
-desc 'generate an updated gemspec'
+task :default => [:test]
+
+desc 'Update CA root certificate bundle'
+task :update_certs do
+  url = 'http://curl.haxx.se/ca/cacert.pem'
+
+  print "Updating CA root certificates from #{url}..."
+
+  File.open(File.join(File.dirname(__FILE__), 'lib', 'larch', 'config', 'cacert.pem'), 'w') do |f|
+    open(url) {|http| f.write(http.read) }
+  end
+
+  puts "done"
+end
+
+desc 'Run tests'
+task :test do
+  sh 'bacon -a'
+end
+
+desc 'Generate an updated gemspec'
 task :gemspec do
   filename = File.join(File.dirname(__FILE__), "#{gemspec.name}.gemspec")
   File.open(filename, 'w') {|f| f << gemspec.to_ruby }
