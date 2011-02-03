@@ -215,7 +215,9 @@ module Larch
         end
 
         begin
-          next unless msg = mailbox_from.peek(guid)
+          unless msg = mailbox_from.peek(guid)
+            @failed += 1
+          end
 
           if msg.envelope.from
             env_from = msg.envelope.from.first
