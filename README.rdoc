@@ -245,19 +245,6 @@ has originated outside of Gmail (Gmail itself does not corrupt the message).
 There is currently no known solution for this problem apart from deleting the
 corrupted messages.
 
-==== Maximum folder name length of 40 characters
-
-Folders in Gmail IMAP are really just labels, and a nested folder hierarchy like
-"Foo\Bar\Baz" is actually just a single label with "\" characters in it. Since
-Gmail limits label names to 40 characters, it's impossible to create a nested
-folder hierarchy with a combined name length of more than 40 characters
-including delimiters.
-
-If you try to copy a too-long folder hierarchy to Gmail using Larch, Gmail will
-return a "Folder name is not allowed" error. To work around this, reorganize
-your mail into a shallower hierarchy on the source server to avoid hitting the
-folder name length limit.
-
 ==== Folder names cannot contain leading or trailing whitespace
 
 Most IMAP servers allow folder names to contain leading and trailing whitespace,
