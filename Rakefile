@@ -21,8 +21,8 @@ gemspec = Gem::Specification.new do |s|
   s.require_path          = 'lib'
   s.required_ruby_version = '>= 1.8.6'
 
-  s.add_dependency('amalgalite', '~> 1.0.0')
-  s.add_dependency('highline',   '~> 1.5.0')
+  s.add_dependency('amalgalite', '~> 1.0')
+  s.add_dependency('highline',   '~> 1.5')
   s.add_dependency('sequel',     '~> 3.14')
   s.add_dependency('trollop',    '~> 1.13')
 
