@@ -9,7 +9,7 @@ Larch is particularly well-suited for copying email to, from, or between Gmail
 accounts.
 
 *Author*::    Ryan Grove (mailto:ryan@wonko.com)
-*Version*::   1.1.0 (2011-01-22)
+*Version*::   1.1.1 (2011-06-26)
 *Copyright*:: Copyright (c) 2011 Ryan Grove. All rights reserved.
 *License*::   GPL 2.0 (http://opensource.org/licenses/gpl-2.0.php)
 *Website*::   http://github.com/rgrove/larch
