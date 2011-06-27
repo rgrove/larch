@@ -1,6 +1,9 @@
 Larch History
 ================================================================================
 
+Version 1.1.1 (2011-06-26)
+  * Relaxed dependency versions.
+
 Version 1.1.0 (2011-01-22)
   * Mailbox and message state information is now stored in a local SQLite
     database, which allows Larch to resync and resume interrupted syncs much
