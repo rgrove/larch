@@ -582,6 +582,7 @@ class Mailbox
       end
 
       yield data unless data.nil?
+      return
     end
 
     blocks = []
