@@ -317,8 +317,9 @@ Larch was created and is maintained by Ryan Grove <ryan@wonko.com>.
 
 The following lovely people have also contributed to Larch:
 
-* Andrew Hobson <ahobson@damballa.com>
+* Torey Heinz <torey@ihswebdesign.com>
 * Edgardo Hames <ehames@gmail.com>
+* Andrew Hobson <ahobson@damballa.com>
 * Justin Mazzi <hh@mailheist.com>
 
 == Credit
