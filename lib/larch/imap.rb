@@ -143,6 +143,9 @@ class IMAP
 
     # Gmail doesn't allow folders with leading or trailing whitespace.
     name.strip! if @quirks[:gmail]
+    
+    #Rackspace namespaces everything under INDEX.
+    name.sub!(/^|inbox\./i, "INBOX.") if @quirks[:rackspace] && name != 'INBOX'
 
     begin
       @mailboxes.fetch(name) do
@@ -264,6 +267,10 @@ class IMAP
     elsif host =~ /^imap(?:-ssl)?\.mail\.yahoo\.com$/
       @quirks[:yahoo] = true
       debug "looks like Yahoo! Mail"
+          
+    elsif host =~ /emailsrvr\.com/
+      @quirks[:rackspace] = true
+      debug "looks like Rackspace Mail"
     end
   end
 
