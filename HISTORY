@@ -1,6 +1,13 @@
 Larch History
 ================================================================================
 
+Version 1.1.2 (2013-01-24)
+  * Fixed an issue in which a folder containing only one message would not be
+    copied.
+  * Switched to the sqlite3 gem instead of amalgalite, since the latter fails
+    to compile against Ruby 1.9.3. This means you'll need to have SQLite
+    available on your system, since it's no longer bundled.
+
 Version 1.1.1 (2011-06-26)
   * Relaxed dependency versions.
 
