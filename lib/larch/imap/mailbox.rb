@@ -243,8 +243,8 @@ class Mailbox
 
     @db_mailbox.update(:uidvalidity => status['UIDVALIDITY'])
 
-    need_flag_scan = flag_range && flag_range.max && flag_range.min && flag_range.max - flag_range.min > 0
-    need_full_scan = full_range && full_range.max && full_range.min && full_range.max - full_range.min > 0
+    need_flag_scan = flag_range && flag_range.max && flag_range.min && flag_range.max - flag_range.min >= 0
+    need_full_scan = full_range && full_range.max && full_range.min && full_range.max - full_range.min >= 0
 
     return unless need_flag_scan || need_full_scan
 
