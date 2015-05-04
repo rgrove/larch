@@ -1,5 +1,9 @@
 = Larch
 
+*Note:* I no longer actively develop or use Larch, so it is effectively
+unmaintained. Many people claim it still works well for them, so feel free
+to use it, but please don't expect support, bug fixes, or new features.
+
 Larch is a tool to copy messages from one IMAP server to another quickly and
 safely. It's smart enough not to copy messages that already exist on the
 destination and robust enough to deal with interruptions caused by flaky
