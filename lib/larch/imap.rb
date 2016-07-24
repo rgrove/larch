@@ -147,6 +147,9 @@ class IMAP
     #Rackspace namespaces everything under INDEX.
     name.sub!(/^|inbox\./i, "INBOX.") if @quirks[:rackspace] && name != 'INBOX'
 
+    #OVH namespaces everything under INDEX.
+    name.sub!(/^|inbox\./i, "INBOX.") if @quirks[:ovh] && name != 'INBOX'
+
     begin
       @mailboxes.fetch(name) do
         update_mailboxes
@@ -271,6 +274,10 @@ class IMAP
     elsif host =~ /emailsrvr\.com/
       @quirks[:rackspace] = true
       debug "looks like Rackspace Mail"
+
+    elsif host =~ /ovh\.net/
+      @quirks[:ovh] = true
+      debug "looks like OVH"
     end
   end
 
