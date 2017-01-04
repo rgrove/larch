@@ -40,6 +40,7 @@ EOS
     opt :expunge,          "Expunge deleted messages from the source", :short => '-x'
     opt :no_recurse,       "Don't copy subfolders recursively (cannot be used with --all or --all_subscribed)", :short => :none
     opt :sync_flags,       "Sync message flags from the source to the destination for messages that already exist at the destination", :short => '-S'
+    opt :copy_timeout,     "How long a message copy operation should run before timing out in seconds (default: 300)", :short => '-C', :default => Config::DEFAULT['copy_timeout'], :type => :string
 
     text "\nGeneral Options:"
     opt :config,           "Specify a non-default config file to use", :short => '-c', :default => Config::DEFAULT['config']

@@ -27,6 +27,7 @@ class Config
     'to-folder'        => nil, # actually INBOX; see validate()
     'to-pass'          => nil,
     'to-user'          => nil,
+    'copy-timeout'     => 300,
     'verbosity'        => 'info'
   }.freeze
 

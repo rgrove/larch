@@ -5,6 +5,7 @@ require 'net/imap'
 require 'time'
 require 'uri'
 require 'yaml'
+require 'timeout'
 
 require 'sequel'
 require 'sequel/extensions/migration'
@@ -220,23 +221,31 @@ module Larch
             next
           end
 
-          if msg.envelope.from
-            env_from = msg.envelope.from.first
-            from = "#{env_from.mailbox}@#{env_from.host}"
-          else
-            from = '?'
+          # When an email isn't readable it seems to hang forever with Gmail and
+          # possibly others. 5 minutes should be plenty
+          Timeout::timeout(@config['copy_timeout'].to_i) do
+            if msg.envelope.from
+              env_from = msg.envelope.from.first
+              from = "#{env_from.mailbox}@#{env_from.host}"
+            else
+              from = '?'
+            end
+
+            @log.info "[>] copying uid #{uid}: #{from} - #{msg.envelope.subject}"
+
+            mailbox_to << msg
+            @copied += 1
           end
-
-          @log.info "[>] copying uid #{uid}: #{from} - #{msg.envelope.subject}"
-
-          mailbox_to << msg
-          @copied += 1
 
           if @config['delete']
             @log.info "[<] deleting uid #{uid}"
             @deleted += 1 if mailbox_from.delete_message(guid)
           end
 
+        rescue Timeout::Error
+          @failed += 1
+          @log.error "[!!>] copying uid #{uid}: timed out!"
+          next
         rescue Larch::IMAP::Error => e
           @failed += 1
           @log.error e.message
